@@ -1,19 +1,19 @@
-# dssflow
+# dss-provisioner
 
-> Declarative flow configuration for Dataiku DSS
+> DSS-as-Code for Dataiku DSS
 
 **Status: In Development** — Not yet ready for production use.
 
 ---
 
-## What is dssflow?
+## What is dss-provisioner?
 
-dssflow lets you define Dataiku DSS pipelines as YAML configuration files, then plan and apply changes with a familiar CLI workflow.
+dss-provisioner lets you define Dataiku DSS assets as YAML configuration files, then plan and apply changes with a familiar CLI workflow.
 
 Instead of clicking through the DSS UI or writing imperative API scripts, you declare what your flow should look like:
 
 ```yaml
-# dssflow.yaml
+# dss-provisioner.yaml
 
 provider:
   host: https://dss.company.com
@@ -49,7 +49,7 @@ scenarios:
 Then preview and apply changes:
 
 ```bash
-$ dssflow plan
+$ dss-provisioner plan
 + dataset "customers_raw"
 + dataset "customers_clean"  
 + recipe "clean_customers"
@@ -57,7 +57,7 @@ $ dssflow plan
 
 Plan: 4 to add, 0 to change, 0 to destroy.
 
-$ dssflow apply
+$ dss-provisioner apply
 Applying changes...
 ✓ Created dataset "customers_raw"
 ✓ Created dataset "customers_clean"
@@ -70,8 +70,8 @@ Apply complete! 4 added, 0 changed, 0 destroyed.
 ## Why?
 
 - **Version control** — Track pipeline changes in git, review in PRs
-- **Reproducibility** — Spin up identical flows across dev/staging/prod
-- **Automation** — Deploy pipelines in CI/CD without UI clicks
+- **Reproducibility** — Spin up identical DSS assets across dev/staging/prod
+- **Automation** — Deploy DSS changes in CI/CD without UI clicks
 - **Visibility** — See exactly what will change before applying
 
 ## Planned Features
@@ -84,12 +84,12 @@ Apply complete! 4 added, 0 changed, 0 destroyed.
 
 ## Extensions
 
-dssflow supports extensions for domain-specific transforms. Extensions add new resource types and compilation logic.
+dss-provisioner supports extensions for domain-specific transforms. Extensions add new resource types and compilation logic.
 
 ```yaml
 # Example: a hypothetical validation extension
 extensions:
-  - dssflow_validate
+  - dss_provisioner_validate
 
 transforms:
   - type: schema_check
@@ -104,7 +104,7 @@ transforms:
 ## Installation
 
 ```bash
-pip install dssflow  # not yet published
+pip install dss-provisioner  # not yet published
 ```
 
 ## Documentation
