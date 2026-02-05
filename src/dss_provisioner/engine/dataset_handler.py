@@ -54,11 +54,21 @@ class DatasetHandler:
     Handles DatasetResource, SnowflakeDatasetResource, and OracleDatasetResource.
     """
 
+    def __init__(self) -> None:
+        self._variables_cache: dict[str, dict[str, str]] = {}
+
     def _get_project(self, ctx: EngineContext) -> DSSProject:
         return ctx.provider.client.get_project(ctx.project_key)
 
     def _get_variables(self, ctx: EngineContext) -> dict[str, str]:
-        """Build the DSS variable substitution map from built-ins + project/instance vars."""
+        """Build the DSS variable substitution map from built-ins + project/instance vars.
+
+        Results are cached per project key to avoid redundant API calls within a
+        plan/apply cycle.
+        """
+        if ctx.project_key in self._variables_cache:
+            return self._variables_cache[ctx.project_key]
+
         variables: dict[str, str] = {"projectKey": ctx.project_key}
         try:
             for k, v in ctx.provider.client.get_variables().items():
@@ -70,7 +80,11 @@ class DatasetHandler:
                     if isinstance(v, str):
                         variables[k] = v
         except Exception:
+            # Variable APIs may be unavailable (e.g. permission issues); fall
+            # back to built-in projectKey only.
             pass
+
+        self._variables_cache[ctx.project_key] = variables
         return variables
 
     def _get_dataset(self, ctx: EngineContext, name: str) -> DSSDataset:
