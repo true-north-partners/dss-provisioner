@@ -1,10 +1,29 @@
 """State management for tracking deployed resources."""
 
+import contextlib
+import hashlib
+import json
+import os
+import tempfile
+import uuid
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+def _canonical_json(obj: Any) -> str:
+    # Stable encoding for hashes/digests. `default=str` keeps it robust for
+    # datetimes/paths/etc while staying deterministic enough for our use.
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def compute_attributes_hash(attrs: Mapping[str, Any]) -> str:
+    """Compute a stable hash for a resource's stored attributes."""
+    payload = _canonical_json(attrs)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 class ResourceInstance(BaseModel):
@@ -43,12 +62,38 @@ class State(BaseModel):
 
     version: int = 1
     project_key: str
+    serial: int = 0
+    lineage: str = Field(default_factory=lambda: str(uuid.uuid4()))
     resources: dict[str, ResourceInstance] = Field(default_factory=dict)
     outputs: dict[str, Any] = Field(default_factory=dict)
 
     def save(self, path: Path) -> None:
-        """Save state to a JSON file."""
-        path.write_text(self.model_dump_json(indent=2))
+        """Save state to a JSON file.
+
+        - Writes atomically (temp file + rename)
+        - Writes a `.backup` copy of the previous state when overwriting
+        """
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        backup_path = Path(str(path) + ".backup")
+        # Avoid TOCTOU race between exists() and read_bytes().
+        with contextlib.suppress(FileNotFoundError):
+            backup_path.write_bytes(path.read_bytes())
+
+        data = self.model_dump(mode="json")
+        content = json.dumps(data, indent=2, sort_keys=True) + "\n"
+
+        fd, tmp_path = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+        tmp_file = Path(tmp_path)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            tmp_file.replace(path)
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                tmp_file.unlink()
 
     @classmethod
     def load(cls, path: Path) -> "State":
@@ -61,3 +106,32 @@ class State(BaseModel):
         if path.exists():
             return cls.load(path)
         return cls(project_key=project_key)
+
+
+def compute_state_digest(state: State) -> str:
+    """Compute a stable digest of state content (excluding timestamps).
+
+    Used for stale-plan detection. By design this excludes fields that should
+    not force a re-plan (e.g., `created_at`/`updated_at` timestamps).
+    """
+    resources = []
+    for address, inst in sorted(state.resources.items(), key=lambda kv: kv[0]):
+        resources.append(
+            {
+                "address": address,
+                "resource_type": inst.resource_type,
+                "name": inst.name,
+                "attributes_hash": inst.attributes_hash,
+                "dependencies": sorted(inst.dependencies),
+            }
+        )
+
+    digestable = {
+        "version": state.version,
+        "project_key": state.project_key,
+        "lineage": state.lineage,
+        "serial": state.serial,
+        "resources": resources,
+    }
+    payload = _canonical_json(digestable)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()

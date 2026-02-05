@@ -19,7 +19,6 @@ dev = [
     "ty>=0.0.1a7",
     "pytest>=8.0",
     "pytest-cov>=6.0",
-    "testcontainers>=4.0",
 ]
 
 [build-system]
@@ -55,6 +54,14 @@ ignore = [
     "E501",   # line too long (handled by formatter)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["D100", "D101", "D102", "D103", "D104", "D107"]
+"**/examples/**" = ["D100", "D101", "D102", "D103", "D104", "D107"]
+"conftest.py" = ["D100", "D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -63,3 +70,23 @@ line-ending = "auto"
 
 [tool.ty.environment]
 python-version = "3.13"
+
+[tool.ty.src]
+include = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: tests that require a real DSS instance (docker/notebook)",
+]
+
+[tool.coverage.run]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_also = ["pragma: no cover", "if TYPE_CHECKING", "@overload"]
+fail_under = 85
+show_missing = true

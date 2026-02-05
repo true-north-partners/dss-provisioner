@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+from pydantic import SecretStr
+
 from dss_provisioner.core import ApiKeyAuth, DSSProvider
 
 
@@ -13,7 +16,7 @@ def test_provider_from_client() -> None:
     provider = DSSProvider.from_client(mock_client)
 
     assert provider.client is mock_client
-    assert provider.projects.list() == ["PROJECT_A", "PROJECT_B"]
+    assert provider.projects.list_projects() == ["PROJECT_A", "PROJECT_B"]
 
 
 def test_provider_handlers_use_same_client() -> None:
@@ -31,18 +34,15 @@ def test_provider_requires_host_and_auth() -> None:
     """Test that provider raises error without host+auth or injected client."""
     provider = DSSProvider.model_construct()
 
-    try:
+    with pytest.raises(ValueError, match=r"host\+auth"):
         _ = provider.client
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "host+auth" in str(e)
 
 
 def test_provider_with_api_key_auth() -> None:
     """Test provider configuration with API key (doesn't actually connect)."""
     provider = DSSProvider(
         host="https://dss.example.com",
-        auth=ApiKeyAuth(api_key="test-key"),
+        auth=ApiKeyAuth(api_key=SecretStr("test-key")),
     )
 
     assert provider.host == "https://dss.example.com"

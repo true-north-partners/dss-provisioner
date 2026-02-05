@@ -1,5 +1,7 @@
 """DSS Provider - Connection configuration for a DSS instance."""
 
+from __future__ import annotations
+
 from functools import cached_property
 from typing import TYPE_CHECKING, Self
 
@@ -7,6 +9,7 @@ import dataikuapi
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 if TYPE_CHECKING:
+    from dss_provisioner.core.project_scope import ProjectScopedProvider
     from dss_provisioner.handlers.datasets import DatasetHandler
     from dss_provisioner.handlers.projects import ProjectHandler
     from dss_provisioner.handlers.recipes import RecipeHandler
@@ -70,8 +73,7 @@ class DSSProvider(BaseModel):
 
         if self.host is None or self.auth is None:
             raise ValueError(
-                "Either provide host+auth, or use DSSProvider.from_client() "
-                "to inject a client"
+                "Either provide host+auth, or use DSSProvider.from_client() to inject a client"
             )
 
         return dataikuapi.DSSClient(
@@ -81,25 +83,31 @@ class DSSProvider(BaseModel):
 
     # Handlers for each DSS concept
     @cached_property
-    def projects(self) -> "ProjectHandler":
+    def projects(self) -> ProjectHandler:
         from dss_provisioner.handlers.projects import ProjectHandler
 
         return ProjectHandler(self.client)
 
     @cached_property
-    def datasets(self) -> "DatasetHandler":
+    def datasets(self) -> DatasetHandler:
         from dss_provisioner.handlers.datasets import DatasetHandler
 
         return DatasetHandler(self.client)
 
     @cached_property
-    def recipes(self) -> "RecipeHandler":
+    def recipes(self) -> RecipeHandler:
         from dss_provisioner.handlers.recipes import RecipeHandler
 
         return RecipeHandler(self.client)
 
     @cached_property
-    def zones(self) -> "ZoneHandler":
+    def zones(self) -> ZoneHandler:
         from dss_provisioner.handlers.zones import ZoneHandler
 
         return ZoneHandler(self.client)
+
+    def in_project(self, project_key: str) -> ProjectScopedProvider:
+        """Bind this provider to a single project for convenience."""
+        from dss_provisioner.core.project_scope import ProjectScopedProvider
+
+        return ProjectScopedProvider(self, project_key)

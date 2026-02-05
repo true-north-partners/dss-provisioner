@@ -1,8 +1,11 @@
 """Handler for DSS flow zones."""
 
-from typing import Any
+from __future__ import annotations
 
-import dataikuapi
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import dataikuapi
 
 
 class ZoneHandler:
@@ -11,7 +14,7 @@ class ZoneHandler:
     def __init__(self, client: dataikuapi.DSSClient) -> None:
         self.client = client
 
-    def list(self, project_key: str) -> list[Any]:
+    def list_zones(self, project_key: str) -> list[Any]:
         """List all zones in a project."""
         project = self.client.get_project(project_key)
         flow = project.get_flow()

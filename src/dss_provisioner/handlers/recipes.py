@@ -1,8 +1,12 @@
 """Handler for DSS recipes."""
 
-from typing import Any
+from __future__ import annotations
 
-import dataikuapi
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import dataikuapi
+    from dataikuapi.dss.recipe import DSSRecipe
 
 
 class RecipeHandler:
@@ -11,14 +15,12 @@ class RecipeHandler:
     def __init__(self, client: dataikuapi.DSSClient) -> None:
         self.client = client
 
-    def list(self, project_key: str) -> list[dict[str, Any]]:
+    def list_recipes(self, project_key: str) -> list[dict[str, Any]]:
         """List all recipes in a project."""
         project = self.client.get_project(project_key)
         return project.list_recipes()
 
-    def get(
-        self, project_key: str, recipe_name: str
-    ) -> dataikuapi.dss.recipe.DSSRecipe:
+    def get(self, project_key: str, recipe_name: str) -> DSSRecipe:
         """Get a recipe."""
         project = self.client.get_project(project_key)
         return project.get_recipe(recipe_name)

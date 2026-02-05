@@ -10,12 +10,13 @@ from dss_provisioner.core import DSSProvider
 
 # Create provider with internal client
 provider = DSSProvider.from_client(dataiku.api_client())
+project = provider.in_project("YOUR_PROJECT_KEY")
 
 # Test: List projects
-print("Projects:", provider.projects.list())
+print("Projects:", provider.projects.list_projects())
 
 # Test: List datasets in a project (replace with your project key)
-# print("Datasets:", provider.datasets.list("YOUR_PROJECT_KEY"))
+# print("Datasets:", project.datasets.list_datasets())
 
 # Test: List recipes in a project
-# print("Recipes:", provider.recipes.list("YOUR_PROJECT_KEY"))
+# print("Recipes:", project.recipes.list_recipes())
