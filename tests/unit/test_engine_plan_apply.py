@@ -279,6 +279,16 @@ class TestValuesDiffer:
     def test_both_empty_dicts(self) -> None:
         assert _values_differ({}, {}) is False
 
+    def test_nested_dict_ignores_extra_prior_keys(self) -> None:
+        desired = {"opts": {"a": 1}}
+        prior = {"opts": {"a": 1, "b": 2}, "extra": True}
+        assert _values_differ(desired, prior) is False
+
+    def test_nested_dict_detects_changed_key(self) -> None:
+        desired = {"opts": {"a": 1}}
+        prior = {"opts": {"a": 99, "b": 2}}
+        assert _values_differ(desired, prior) is True
+
     def test_dict_vs_none_prior(self) -> None:
         assert _values_differ({"a": 1}, None) is True
 
@@ -329,18 +339,17 @@ class TestDictFieldDiffInPlan:
         assert plan.changes[0].diff is not None
         assert plan.changes[0].diff["config"]["to"]["separator"] == ","
 
-    def test_nested_dicts_use_strict_equality(self, tmp_path: Path) -> None:
-        """Nested dict values are compared strictly — partial comparison is shallow."""
+    def test_nested_dicts_use_partial_comparison(self, tmp_path: Path) -> None:
+        """Nested dict values also get partial comparison — recursive."""
         engine, _handler = _engine(tmp_path)
 
         r = DummyResource(name="r1", value=1, config={"opts": {"a": 1}})
         engine.apply(engine.plan([r]))
 
-        # Provider adds a nested key — this WILL trigger an update
-        # because the nested dict {"a": 1} != {"a": 1, "b": 2}
+        # Provider adds a nested key — NOOP because partial comparison is recursive
         state = State.load(engine.state_path)
         state.resources["dummy.r1"].attributes["config"] = {"opts": {"a": 1, "b": 2}}
         state.save(engine.state_path)
 
         plan = engine.plan([r], refresh=False)
-        assert plan.changes[0].action == Action.UPDATE
+        assert plan.changes[0].action == Action.NOOP

@@ -44,7 +44,7 @@ def _values_differ(desired: Any, prior: Any) -> bool:
     added by the provider (e.g. DSS default expansion) are ignored.
     """
     if isinstance(desired, dict) and isinstance(prior, dict):
-        return any(prior.get(k) != v for k, v in desired.items())
+        return any(_values_differ(v, prior.get(k)) for k, v in desired.items())
     return desired != prior
 
 
