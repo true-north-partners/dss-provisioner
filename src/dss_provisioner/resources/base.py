@@ -2,7 +2,7 @@
 
 from typing import ClassVar
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, ConfigDict, computed_field
 
 
 class Resource(BaseModel):
@@ -11,6 +11,8 @@ class Resource(BaseModel):
     Resources are pure data - they define the desired state.
     Handlers know how to CRUD resources.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     resource_type: ClassVar[str]
 

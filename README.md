@@ -82,6 +82,16 @@ Apply complete! 4 added, 0 changed, 0 destroyed.
 - [ ] DAG visualization
 - [ ] Import existing DSS projects to YAML
 
+## Engine Semantics (Terraform-Like)
+
+- One state file manages **one DSS project** (`project_key`). Plan/apply will error if the state belongs to a different project.
+- State includes `lineage` + `serial`, and is written with:
+  - `<state>.lock` file locking
+  - atomic writes + `<state>.backup` on overwrite
+- `plan` performs a **refresh by default** (reads remote objects and may persist refreshed state).
+- `apply` executes changes sequentially with **no rollback**. If apply fails/cancels, state reflects whatever was completed.
+- Saved plans (`plan` → JSON → `apply`) are checked for staleness via `lineage`, `serial`, and a stable state digest.
+
 ## Extensions
 
 dss-provisioner supports extensions for domain-specific transforms. Extensions add new resource types and compilation logic.
