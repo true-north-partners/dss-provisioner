@@ -17,8 +17,10 @@ from dss_provisioner.engine.types import Action
 from dss_provisioner.resources.dataset import (
     Column,
     DatasetResource,
+    FilesystemDatasetResource,
     OracleDatasetResource,
     SnowflakeDatasetResource,
+    UploadDatasetResource,
 )
 
 if TYPE_CHECKING:
@@ -197,6 +199,54 @@ class TestCreateOracleDataset:
                 "table": "employees",
             },
         )
+
+
+class TestCreateFilesystemDataset:
+    def test_filesystem_params_mapping(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,
+        mock_dataset: MagicMock,
+    ) -> None:
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "/data/input"},
+        )
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        desired = FilesystemDatasetResource(
+            name="my_ds", connection="filesystem_managed", path="/data/input"
+        )
+        handler.create(ctx, desired)
+
+        mock_project.create_dataset.assert_called_once_with(
+            "my_ds",
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "/data/input"},
+        )
+
+
+class TestCreateUploadDataset:
+    def test_upload_creates_managed(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,
+        mock_dataset: MagicMock,
+    ) -> None:
+        raw = _make_raw("UploadedFiles", managed=True)
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        builder = MagicMock()
+        builder.create.return_value = mock_dataset
+        mock_project.new_managed_dataset.return_value = builder
+
+        desired = UploadDatasetResource(name="my_ds")
+        handler.create(ctx, desired)
+
+        mock_project.new_managed_dataset.assert_called_once_with("my_ds")
+        builder.create.assert_called_once()
 
 
 class TestCreateSetsSchemaWhenColumnsProvided:
@@ -447,6 +497,8 @@ def _setup_engine(
     registry.register(DatasetResource, handler)
     registry.register(SnowflakeDatasetResource, handler)
     registry.register(OracleDatasetResource, handler)
+    registry.register(FilesystemDatasetResource, handler)
+    registry.register(UploadDatasetResource, handler)
 
     engine = DSSEngine(
         provider=provider,
@@ -553,6 +605,37 @@ class TestEngineIntegrationRoundtrip:
         ds = OracleDatasetResource(
             name="ora_ds", connection="ora_conn", schema_name="HR", table="employees"
         )
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # NOOP — verify attributes roundtrip correctly
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
+    def test_filesystem_roundtrip(self, tmp_path: Path) -> None:
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "/data/input"},
+        )
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        ds = FilesystemDatasetResource(
+            name="fs_ds", connection="filesystem_managed", path="/data/input"
+        )
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # NOOP — verify attributes roundtrip correctly
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
+    def test_upload_roundtrip(self, tmp_path: Path) -> None:
+        raw = _make_raw("UploadedFiles", managed=True)
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        ds = UploadDatasetResource(name="upload_ds")
         plan = engine.plan([ds])
         assert plan.changes[0].action == Action.CREATE
         engine.apply(plan)

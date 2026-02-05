@@ -25,6 +25,9 @@ _EXTRA_PARAM_FIELDS: dict[str, list[tuple[str, str, Any]]] = {
         ("schema_name", "schema", ""),
         ("table", "table", ""),
     ],
+    "dss_filesystem_dataset": [
+        ("path", "path", ""),
+    ],
 }
 
 

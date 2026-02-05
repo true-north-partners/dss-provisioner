@@ -87,3 +87,27 @@ class OracleDatasetResource(DatasetResource):
         params["schema"] = self.schema_name
         params["table"] = self.table
         return params
+
+
+class FilesystemDatasetResource(DatasetResource):
+    """Filesystem-specific dataset resource."""
+
+    resource_type: ClassVar[str] = "dss_filesystem_dataset"
+
+    dataset_type: Literal["Filesystem"] = "Filesystem"
+    connection: str  # type: ignore[assignment]
+    path: str
+
+    def to_dss_params(self) -> dict[str, Any]:
+        params = super().to_dss_params()
+        params["path"] = self.path
+        return params
+
+
+class UploadDatasetResource(DatasetResource):
+    """Upload-specific dataset resource."""
+
+    resource_type: ClassVar[str] = "dss_upload_dataset"
+
+    dataset_type: Literal["UploadedFiles"] = "UploadedFiles"
+    managed: bool = True

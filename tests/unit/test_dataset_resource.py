@@ -8,8 +8,10 @@ from pydantic import ValidationError
 from dss_provisioner.resources.dataset import (
     Column,
     DatasetResource,
+    FilesystemDatasetResource,
     OracleDatasetResource,
     SnowflakeDatasetResource,
+    UploadDatasetResource,
 )
 
 
@@ -254,3 +256,69 @@ class TestOracleDatasetResource:
             "schema": "HR",
             "table": "employees",
         }
+
+
+class TestFilesystemDatasetResource:
+    def test_address(self) -> None:
+        ds = FilesystemDatasetResource(
+            name="my_ds", connection="filesystem_managed", path="/data/input"
+        )
+        assert ds.address == "dss_filesystem_dataset.my_ds"
+
+    def test_defaults(self) -> None:
+        ds = FilesystemDatasetResource(
+            name="my_ds", connection="filesystem_managed", path="/data/input"
+        )
+        assert ds.dataset_type == "Filesystem"
+
+    def test_required_fields(self) -> None:
+        with pytest.raises(ValidationError):
+            FilesystemDatasetResource(name="my_ds")  # type: ignore[call-arg]
+
+    def test_dataset_type_locked(self) -> None:
+        with pytest.raises(ValidationError):
+            FilesystemDatasetResource(
+                name="my_ds",
+                connection="conn",
+                path="/data",
+                dataset_type="Oracle",  # type: ignore[arg-type]
+            )
+
+    def test_to_dss_params(self) -> None:
+        ds = FilesystemDatasetResource(
+            name="my_ds", connection="filesystem_managed", path="/data/input"
+        )
+        assert ds.to_dss_params() == {
+            "connection": "filesystem_managed",
+            "path": "/data/input",
+        }
+
+    def test_model_dump_shape(self) -> None:
+        ds = FilesystemDatasetResource(
+            name="my_ds", connection="filesystem_managed", path="/data/input"
+        )
+        dump = ds.model_dump(exclude_none=True, exclude={"address"})
+        assert dump["dataset_type"] == "Filesystem"
+        assert dump["connection"] == "filesystem_managed"
+        assert dump["path"] == "/data/input"
+
+
+class TestUploadDatasetResource:
+    def test_address(self) -> None:
+        ds = UploadDatasetResource(name="my_ds")
+        assert ds.address == "dss_upload_dataset.my_ds"
+
+    def test_defaults(self) -> None:
+        ds = UploadDatasetResource(name="my_ds")
+        assert ds.dataset_type == "UploadedFiles"
+        assert ds.managed is True
+
+    def test_dataset_type_locked(self) -> None:
+        with pytest.raises(ValidationError):
+            UploadDatasetResource(name="my_ds", dataset_type="Oracle")  # type: ignore[arg-type]
+
+    def test_model_dump_shape(self) -> None:
+        ds = UploadDatasetResource(name="my_ds")
+        dump = ds.model_dump(exclude_none=True, exclude={"address"})
+        assert dump["dataset_type"] == "UploadedFiles"
+        assert dump["managed"] is True
