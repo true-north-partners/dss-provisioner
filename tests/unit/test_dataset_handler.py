@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,7 +10,7 @@ import pytest
 from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
-from dss_provisioner.engine.dataset_handler import DatasetHandler
+from dss_provisioner.engine.dataset_handler import DatasetHandler, _resolve_variables
 from dss_provisioner.engine.handlers import EngineContext
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action
@@ -29,7 +29,9 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def mock_client() -> MagicMock:
-    return MagicMock()
+    client = MagicMock()
+    client.get_variables.return_value = {}
+    return client
 
 
 @pytest.fixture
@@ -46,6 +48,7 @@ def handler() -> DatasetHandler:
 @pytest.fixture
 def mock_project(mock_client: MagicMock) -> MagicMock:
     project = MagicMock()
+    project.get_variables.return_value = {"standard": {}, "local": {}}
     mock_client.get_project.return_value = project
     return project
 
@@ -415,6 +418,58 @@ class TestRead:
             {"name": "id", "type": "int", "description": "pk", "meaning": None}
         ]
 
+    def test_replaces_project_key_variable_in_path(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_dataset: MagicMock,
+    ) -> None:
+        mock_dataset.exists.return_value = True
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "${projectKey}/my_ds"},
+        )
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        prior = ResourceInstance(
+            address="dss_filesystem_dataset.my_ds",
+            resource_type="dss_filesystem_dataset",
+            name="my_ds",
+        )
+        result = handler.read(ctx, prior)
+
+        assert result is not None
+        assert result["path"] == "PRJ/my_ds"
+
+    def test_resolves_custom_project_variables(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,
+        mock_dataset: MagicMock,
+    ) -> None:
+        mock_dataset.exists.return_value = True
+        mock_project.get_variables.return_value = {
+            "standard": {"env": "prod"},
+            "local": {},
+        }
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "${projectKey}/${env}/data"},
+        )
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        prior = ResourceInstance(
+            address="dss_filesystem_dataset.my_ds",
+            resource_type="dss_filesystem_dataset",
+            name="my_ds",
+        )
+        result = handler.read(ctx, prior)
+
+        assert result is not None
+        assert result["path"] == "PRJ/prod/data"
+
     def test_returns_none_when_deleted(
         self,
         ctx: EngineContext,
@@ -498,9 +553,11 @@ def _setup_engine(
 ) -> tuple[DSSEngine, MagicMock, MagicMock]:
     """Wire up a DSSEngine with DatasetHandler and mocked dataikuapi objects."""
     mock_client = MagicMock()
+    mock_client.get_variables.return_value = {}
     provider = DSSProvider.from_client(mock_client)
 
     project = MagicMock()
+    project.get_variables.return_value = {"standard": {}, "local": {}}
     mock_client.get_project.return_value = project
 
     dataset = MagicMock()
@@ -657,6 +714,29 @@ class TestEngineIntegrationRoundtrip:
         plan2 = engine.plan([ds])
         assert plan2.changes[0].action == Action.NOOP
 
+    def test_path_variable_substitution_noop(self, tmp_path: Path) -> None:
+        """Regression test for issue #11: DSS stores paths with ${projectKey}."""
+        # User declares literal path
+        ds = FilesystemDatasetResource(
+            name="fs_ds", connection="filesystem_managed", path="PRJ/my_data"
+        )
+
+        # DSS stores path with ${projectKey} variable
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "${projectKey}/my_data"},
+        )
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        # CREATE
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # Should be NOOP — ${projectKey} is resolved to PRJ during read
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
     def test_format_params_noop_when_dss_expands_defaults(self, tmp_path: Path) -> None:
         """Regression test for issue #10: DSS expands format_params with defaults."""
         # User declares minimal format_params
@@ -746,3 +826,37 @@ class TestEngineIntegrationRoundtrip:
         # NOOP — verify attributes roundtrip correctly
         plan2 = engine.plan([ds])
         assert plan2.changes[0].action == Action.NOOP
+
+
+class TestResolveVariables:
+    """Unit tests for DSS variable substitution."""
+
+    VARS: ClassVar[dict[str, str]] = {"projectKey": "PRJ"}
+
+    def test_replaces_variable_in_string(self) -> None:
+        assert _resolve_variables("${projectKey}/data", self.VARS) == "PRJ/data"
+
+    def test_leaves_plain_string_unchanged(self) -> None:
+        assert _resolve_variables("no_vars_here", self.VARS) == "no_vars_here"
+
+    def test_replaces_in_nested_dict(self) -> None:
+        value = {"path": "${projectKey}/data", "nested": {"ref": "${projectKey}/other"}}
+        result = _resolve_variables(value, {"projectKey": "TEST"})
+        assert result == {"path": "TEST/data", "nested": {"ref": "TEST/other"}}
+
+    def test_replaces_in_list(self) -> None:
+        value = ["${projectKey}/a", "${projectKey}/b"]
+        assert _resolve_variables(value, self.VARS) == ["PRJ/a", "PRJ/b"]
+
+    def test_multiple_variables(self) -> None:
+        variables = {"projectKey": "PRJ", "user": "admin"}
+        value = "${projectKey}/uploads/${user}"
+        assert _resolve_variables(value, variables) == "PRJ/uploads/admin"
+
+    def test_leaves_non_strings_unchanged(self) -> None:
+        assert _resolve_variables(42, self.VARS) == 42
+        assert _resolve_variables(True, self.VARS) is True
+        assert _resolve_variables(None, self.VARS) is None
+
+    def test_unknown_variables_left_as_is(self) -> None:
+        assert _resolve_variables("${unknownVar}/data", self.VARS) == "${unknownVar}/data"

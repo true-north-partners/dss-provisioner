@@ -31,14 +31,61 @@ _EXTRA_PARAM_FIELDS: dict[str, list[tuple[str, str, Any]]] = {
 }
 
 
+def _resolve_variables(value: Any, variables: dict[str, str]) -> Any:
+    """Replace DSS ``${…}`` variables in string values, recursively.
+
+    *variables* maps variable names to their values, e.g.
+    ``{"projectKey": "MY_PRJ"}``.
+    """
+    if isinstance(value, str):
+        for var, replacement in variables.items():
+            value = value.replace(f"${{{var}}}", replacement)
+        return value
+    if isinstance(value, dict):
+        return {k: _resolve_variables(v, variables) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_resolve_variables(v, variables) for v in value]
+    return value
+
+
 class DatasetHandler:
     """CRUD handler for DSS datasets.
 
     Handles DatasetResource, SnowflakeDatasetResource, and OracleDatasetResource.
     """
 
+    def __init__(self) -> None:
+        self._variables_cache: dict[str, dict[str, str]] = {}
+
     def _get_project(self, ctx: EngineContext) -> DSSProject:
         return ctx.provider.client.get_project(ctx.project_key)
+
+    def _get_variables(self, ctx: EngineContext) -> dict[str, str]:
+        """Build the DSS variable substitution map from built-ins + project/instance vars.
+
+        Results are cached per project key to avoid redundant API calls within a
+        plan/apply cycle.
+        """
+        if ctx.project_key in self._variables_cache:
+            return self._variables_cache[ctx.project_key]
+
+        variables: dict[str, str] = {"projectKey": ctx.project_key}
+        try:
+            for k, v in ctx.provider.client.get_variables().items():
+                if isinstance(v, str):
+                    variables[k] = v
+            project_vars = self._get_project(ctx).get_variables()
+            for scope in ("standard", "local"):
+                for k, v in project_vars.get(scope, {}).items():
+                    if isinstance(v, str):
+                        variables[k] = v
+        except Exception:
+            # Variable APIs may be unavailable (e.g. permission issues); fall
+            # back to built-in projectKey only.
+            pass
+
+        self._variables_cache[ctx.project_key] = variables
+        return variables
 
     def _get_dataset(self, ctx: EngineContext, name: str) -> DSSDataset:
         return self._get_project(ctx).get_dataset(name)
@@ -89,6 +136,7 @@ class DatasetHandler:
 
     def _read_attrs(
         self,
+        ctx: EngineContext,
         dataset: DSSDataset,
         resource_type: str,
         name: str,
@@ -127,7 +175,7 @@ class DatasetHandler:
         for model_field, dss_key, default in _EXTRA_PARAM_FIELDS.get(resource_type, []):
             attrs[model_field] = params.get(dss_key, default)
 
-        return attrs
+        return _resolve_variables(attrs, self._get_variables(ctx))
 
     def create(self, ctx: EngineContext, desired: DatasetResource) -> dict[str, Any]:
         """Create a dataset in DSS."""
@@ -150,14 +198,16 @@ class DatasetHandler:
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(dataset, desired.resource_type, desired.name, desired.dataset_type)
+        return self._read_attrs(
+            ctx, dataset, desired.resource_type, desired.name, desired.dataset_type
+        )
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any] | None:
         """Read dataset from DSS. Returns None if deleted externally."""
         dataset = self._get_dataset(ctx, prior.name)
         if not dataset.exists():
             return None
-        return self._read_attrs(dataset, prior.resource_type, prior.name)
+        return self._read_attrs(ctx, dataset, prior.resource_type, prior.name)
 
     def update(
         self, ctx: EngineContext, desired: DatasetResource, prior: ResourceInstance
@@ -178,7 +228,9 @@ class DatasetHandler:
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(dataset, desired.resource_type, desired.name, desired.dataset_type)
+        return self._read_attrs(
+            ctx, dataset, desired.resource_type, desired.name, desired.dataset_type
+        )
 
     def delete(self, ctx: EngineContext, prior: ResourceInstance) -> None:
         """Delete a dataset from DSS."""
