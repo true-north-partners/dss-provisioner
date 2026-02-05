@@ -209,6 +209,25 @@ def test_plan_refresh_false_fails_on_unregistered_delete(tmp_path: Path) -> None
         engine.plan([], refresh=False)
 
 
+def test_destroy_plan_refresh_false_fails_on_unregistered_resource(tmp_path: Path) -> None:
+    engine, _handler = _engine(tmp_path)
+
+    state = State(
+        project_key=engine.project_key,
+        resources={
+            "missing.r1": ResourceInstance(
+                address="missing.r1",
+                resource_type="missing",
+                name="r1",
+            )
+        },
+    )
+    state.save(engine.state_path)
+
+    with pytest.raises(UnknownResourceTypeError):
+        engine.plan([], destroy=True, refresh=False)
+
+
 def test_stale_plan_detection(tmp_path: Path) -> None:
     engine, _handler = _engine(tmp_path)
 
