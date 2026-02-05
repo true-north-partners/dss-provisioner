@@ -175,6 +175,8 @@ class DSSEngine:
                 delete_order = self._delete_order(state, state_addrs)
                 for addr in delete_order:
                     inst = state.resources[addr]
+                    # Fail early if the plan would require a handler we don't have.
+                    self._registry.get(inst.resource_type)
                     changes.append(
                         ResourceChange(
                             address=addr,
@@ -238,6 +240,8 @@ class DSSEngine:
                 delete_order = self._delete_order(state, to_delete)
                 for addr in delete_order:
                     inst = state.resources[addr]
+                    # Fail early if the plan would require a handler we don't have.
+                    self._registry.get(inst.resource_type)
                     changes.append(
                         ResourceChange(
                             address=addr,
