@@ -5,10 +5,12 @@ from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import Field
 
 from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
+from dss_provisioner.engine.engine import _values_differ
 from dss_provisioner.engine.errors import StalePlanError, UnknownResourceTypeError
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
@@ -19,6 +21,7 @@ from dss_provisioner.resources.base import Resource
 class DummyResource(Resource):
     resource_type: ClassVar[str] = "dummy"
     value: int
+    config: dict[str, Any] = Field(default_factory=dict)
 
 
 def _attrs(resource: DummyResource) -> dict[str, Any]:
@@ -28,6 +31,7 @@ def _attrs(resource: DummyResource) -> dict[str, Any]:
         "description": resource.description,
         "tags": list(resource.tags),
         "value": resource.value,
+        "config": dict(resource.config),
     }
 
 
@@ -243,3 +247,109 @@ def test_stale_plan_detection(tmp_path: Path) -> None:
 
     with pytest.raises(StalePlanError):
         engine.apply(plan_update)
+
+
+class TestValuesDiffer:
+    """Unit tests for the partial-dict-aware comparison helper."""
+
+    def test_equal_scalars(self) -> None:
+        assert _values_differ(1, 1) is False
+
+    def test_different_scalars(self) -> None:
+        assert _values_differ(1, 2) is True
+
+    def test_dict_ignores_extra_prior_keys(self) -> None:
+        desired = {"separator": ","}
+        prior = {"separator": ",", "charset": "UTF-8", "escapeChar": "\\"}
+        assert _values_differ(desired, prior) is False
+
+    def test_dict_detects_changed_declared_key(self) -> None:
+        desired = {"separator": ","}
+        prior = {"separator": ";", "charset": "UTF-8"}
+        assert _values_differ(desired, prior) is True
+
+    def test_dict_detects_missing_key_in_prior(self) -> None:
+        desired = {"separator": ","}
+        prior = {"charset": "UTF-8"}
+        assert _values_differ(desired, prior) is True
+
+    def test_empty_desired_dict_always_matches(self) -> None:
+        assert _values_differ({}, {"separator": ",", "charset": "UTF-8"}) is False
+
+    def test_both_empty_dicts(self) -> None:
+        assert _values_differ({}, {}) is False
+
+    def test_nested_dict_ignores_extra_prior_keys(self) -> None:
+        desired = {"opts": {"a": 1}}
+        prior = {"opts": {"a": 1, "b": 2}, "extra": True}
+        assert _values_differ(desired, prior) is False
+
+    def test_nested_dict_detects_changed_key(self) -> None:
+        desired = {"opts": {"a": 1}}
+        prior = {"opts": {"a": 99, "b": 2}}
+        assert _values_differ(desired, prior) is True
+
+    def test_dict_vs_none_prior(self) -> None:
+        assert _values_differ({"a": 1}, None) is True
+
+    def test_none_vs_dict_prior(self) -> None:
+        assert _values_differ(None, {"a": 1}) is True
+
+    def test_lists_use_strict_equality(self) -> None:
+        assert _values_differ([1, 2], [1, 2]) is False
+        assert _values_differ([1, 2], [1, 2, 3]) is True
+
+
+class TestDictFieldDiffInPlan:
+    """Engine-level test: dict fields with provider-added defaults don't cause spurious updates."""
+
+    def test_noop_when_prior_has_extra_dict_keys(self, tmp_path: Path) -> None:
+        engine, handler = _engine(tmp_path)
+
+        r = DummyResource(name="r1", value=1, config={"separator": ","})
+        engine.apply(engine.plan([r]))
+
+        # Simulate provider expanding the dict with extra default keys
+        handler.store["dummy.r1"]["config"] = {
+            "separator": ",",
+            "charset": "UTF-8",
+            "escapeChar": "\\",
+        }
+        state = State.load(engine.state_path)
+        state.resources["dummy.r1"].attributes["config"] = handler.store["dummy.r1"]["config"]
+        state.save(engine.state_path)
+
+        plan = engine.plan([r], refresh=False)
+        assert plan.changes[0].action == Action.NOOP
+
+    def test_update_when_declared_dict_key_changed(self, tmp_path: Path) -> None:
+        engine, handler = _engine(tmp_path)
+
+        r = DummyResource(name="r1", value=1, config={"separator": ","})
+        engine.apply(engine.plan([r]))
+
+        # Provider expanded, and someone changed a declared key
+        handler.store["dummy.r1"]["config"] = {"separator": ";", "charset": "UTF-8"}
+        state = State.load(engine.state_path)
+        state.resources["dummy.r1"].attributes["config"] = handler.store["dummy.r1"]["config"]
+        state.save(engine.state_path)
+
+        plan = engine.plan([r], refresh=False)
+        assert plan.changes[0].action == Action.UPDATE
+        assert plan.changes[0].diff is not None
+        assert plan.changes[0].diff["config"]["to"]["separator"] == ","
+
+    def test_nested_dicts_use_partial_comparison(self, tmp_path: Path) -> None:
+        """Nested dict values also get partial comparison — recursive."""
+        engine, _handler = _engine(tmp_path)
+
+        r = DummyResource(name="r1", value=1, config={"opts": {"a": 1}})
+        engine.apply(engine.plan([r]))
+
+        # Provider adds a nested key — NOOP because partial comparison is recursive
+        state = State.load(engine.state_path)
+        state.resources["dummy.r1"].attributes["config"] = {"opts": {"a": 1, "b": 2}}
+        state.save(engine.state_path)
+
+        plan = engine.plan([r], refresh=False)
+        assert plan.changes[0].action == Action.NOOP
