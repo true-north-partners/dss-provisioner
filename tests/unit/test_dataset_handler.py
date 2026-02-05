@@ -258,6 +258,28 @@ class TestCreateSetsFormatWhenSpecified:
         assert raw["formatParams"] == {"separator": ",", "style": "unix"}
         mock_dataset.get_settings.return_value.save.assert_called()
 
+    def test_format_clears_params_when_empty(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_dataset: MagicMock,
+    ) -> None:
+        raw: dict[str, Any] = {
+            "type": "Filesystem",
+            "params": {},
+            "managed": False,
+            "formatType": "csv",
+            "formatParams": {"separator": ","},
+        }
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        desired = DatasetResource(name="my_ds", dataset_type="Filesystem", format_type="parquet")
+        handler.create(ctx, desired)
+
+        assert raw["formatType"] == "parquet"
+        assert raw["formatParams"] == {}
+
 
 class TestCreateSetsZoneWhenSpecified:
     def test_zone_applied(

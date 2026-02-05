@@ -97,6 +97,14 @@ class TestDatasetResource:
         assert "format_type" not in dump
         assert "zone" not in dump
 
+    def test_to_dss_params_with_connection(self) -> None:
+        ds = DatasetResource(name="my_ds", dataset_type="Filesystem", connection="local")
+        assert ds.to_dss_params() == {"connection": "local"}
+
+    def test_to_dss_params_without_connection(self) -> None:
+        ds = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        assert ds.to_dss_params() == {}
+
 
 class TestSnowflakeDatasetResource:
     def test_address(self) -> None:
@@ -162,6 +170,30 @@ class TestSnowflakeDatasetResource:
                 write_mode="INVALID",  # type: ignore[arg-type]
             )
 
+    def test_to_dss_params(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            table="users",
+            catalog="MY_CAT",
+            write_mode="APPEND",
+        )
+        assert ds.to_dss_params() == {
+            "connection": "sf_conn",
+            "schema": "PUBLIC",
+            "table": "users",
+            "catalog": "MY_CAT",
+            "writeMode": "APPEND",
+        }
+
+    def test_to_dss_params_no_catalog(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds", connection="sf_conn", schema_name="PUBLIC", table="users"
+        )
+        params = ds.to_dss_params()
+        assert "catalog" not in params
+
 
 class TestOracleDatasetResource:
     def test_address(self) -> None:
@@ -212,3 +244,13 @@ class TestOracleDatasetResource:
         assert dump["connection"] == "oracle_conn"
         assert dump["schema_name"] == "HR"
         assert dump["table"] == "employees"
+
+    def test_to_dss_params(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds", connection="ora_conn", schema_name="HR", table="employees"
+        )
+        assert ds.to_dss_params() == {
+            "connection": "ora_conn",
+            "schema": "HR",
+            "table": "employees",
+        }
