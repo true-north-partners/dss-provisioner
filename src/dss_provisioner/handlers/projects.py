@@ -25,7 +25,9 @@ class ProjectHandler:
 
     def create(self, project_key: str, name: str, owner: str) -> dict[str, Any]:
         """Create a new project."""
-        project = self.client.create_project(project_key, name, owner)
+        # `dataikuapi.DSSClient.create_project()` requires `owner` in the
+        # version we target; pass as keyword for clarity/robustness.
+        project = self.client.create_project(project_key, name, owner=owner)
         return {"project_key": project.project_key}
 
     def delete(self, project_key: str) -> None:

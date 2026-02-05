@@ -76,7 +76,8 @@ class State(BaseModel):
         path.parent.mkdir(parents=True, exist_ok=True)
 
         backup_path = Path(str(path) + ".backup")
-        if path.exists():
+        # Avoid TOCTOU race between exists() and read_bytes().
+        with contextlib.suppress(FileNotFoundError):
             backup_path.write_bytes(path.read_bytes())
 
         data = self.model_dump(mode="json")
