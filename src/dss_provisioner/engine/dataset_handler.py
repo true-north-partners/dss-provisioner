@@ -76,7 +76,11 @@ class DatasetHandler:
 
     def _read_zone(self, dataset: DSSDataset) -> str | None:
         """Read the current flow zone of a dataset, or None if in the default zone."""
-        zone = dataset.get_zone()
+        try:
+            zone = dataset.get_zone()
+        except Exception:
+            # Flow zones may not be available (e.g. free edition).
+            return None
         zone_id = zone.id
         # The default zone has a well-known id; treat it as "no zone".
         if zone_id == "default":
