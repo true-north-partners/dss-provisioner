@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import json
-import pathlib
 from datetime import UTC, datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class Action(str, Enum):
@@ -54,14 +51,14 @@ class Plan(BaseModel):
         return counts
 
     def save(self, path: Path) -> None:
-        path = pathlib.Path(path)
+        path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         data = self.model_dump(mode="json")
         path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     @classmethod
     def load(cls, path: Path) -> Plan:
-        path = pathlib.Path(path)
+        path = Path(path)
         return cls.model_validate_json(path.read_text(encoding="utf-8"))
 
 
