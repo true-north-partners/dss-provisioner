@@ -37,6 +37,17 @@ if TYPE_CHECKING:
     from dss_provisioner.resources.base import Resource
 
 
+def _values_differ(desired: Any, prior: Any) -> bool:
+    """Check whether a desired value differs from the prior (stored) value.
+
+    For dict values, only keys present in *desired* are compared — extra keys
+    added by the provider (e.g. DSS default expansion) are ignored.
+    """
+    if isinstance(desired, dict) and isinstance(prior, dict):
+        return any(prior.get(k) != v for k, v in desired.items())
+    return desired != prior
+
+
 def _canonical_json(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -208,7 +219,7 @@ class DSSEngine:
                     diff: dict[str, Any] = {}
                     for k, v in planned_dump.items():
                         prior_v = prior_inst.attributes.get(k)
-                        if prior_v != v:
+                        if _values_differ(v, prior_v):
                             diff[k] = {"from": prior_v, "to": v}
 
                     if diff:

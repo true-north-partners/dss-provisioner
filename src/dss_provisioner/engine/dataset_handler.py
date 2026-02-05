@@ -72,7 +72,7 @@ class DatasetHandler:
             return
         raw = settings.get_raw()
         raw["formatType"] = desired.format_type
-        raw["formatParams"] = dict(desired.format_params)
+        raw.setdefault("formatParams", {}).update(desired.format_params)
 
     def _read_zone(self, dataset: DSSDataset) -> str | None:
         """Read the current flow zone of a dataset, or None if in the default zone."""

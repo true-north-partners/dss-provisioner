@@ -308,7 +308,7 @@ class TestCreateSetsFormatWhenSpecified:
         assert raw["formatParams"] == {"separator": ",", "style": "unix"}
         mock_dataset.get_settings.return_value.save.assert_called()
 
-    def test_format_clears_params_when_empty(
+    def test_format_merges_params_into_existing(
         self,
         ctx: EngineContext,
         handler: DatasetHandler,
@@ -320,7 +320,33 @@ class TestCreateSetsFormatWhenSpecified:
             "params": {},
             "managed": False,
             "formatType": "csv",
-            "formatParams": {"separator": ","},
+            "formatParams": {"separator": ",", "charset": "UTF-8"},
+        }
+        mock_dataset.get_settings.return_value.get_raw.return_value = raw
+
+        desired = DatasetResource(
+            name="my_ds",
+            dataset_type="Filesystem",
+            format_type="csv",
+            format_params={"separator": ";"},
+        )
+        handler.create(ctx, desired)
+
+        assert raw["formatParams"] == {"separator": ";", "charset": "UTF-8"}
+
+    def test_format_preserves_existing_when_no_params_declared(
+        self,
+        ctx: EngineContext,
+        handler: DatasetHandler,
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_dataset: MagicMock,
+    ) -> None:
+        raw: dict[str, Any] = {
+            "type": "Filesystem",
+            "params": {},
+            "managed": False,
+            "formatType": "csv",
+            "formatParams": {"separator": ",", "charset": "UTF-8"},
         }
         mock_dataset.get_settings.return_value.get_raw.return_value = raw
 
@@ -328,7 +354,7 @@ class TestCreateSetsFormatWhenSpecified:
         handler.create(ctx, desired)
 
         assert raw["formatType"] == "parquet"
-        assert raw["formatParams"] == {}
+        assert raw["formatParams"] == {"separator": ",", "charset": "UTF-8"}
 
 
 class TestCreateSetsZoneWhenSpecified:
@@ -630,6 +656,83 @@ class TestEngineIntegrationRoundtrip:
         # NOOP — verify attributes roundtrip correctly
         plan2 = engine.plan([ds])
         assert plan2.changes[0].action == Action.NOOP
+
+    def test_format_params_noop_when_dss_expands_defaults(self, tmp_path: Path) -> None:
+        """Regression test for issue #10: DSS expands format_params with defaults."""
+        # User declares minimal format_params
+        ds = DatasetResource(
+            name="my_ds",
+            dataset_type="Filesystem",
+            connection="local",
+            format_type="csv",
+            format_params={"separator": ",", "style": "unix"},
+        )
+
+        # DSS returns expanded format_params with all defaults
+        expanded_params = {
+            "separator": ",",
+            "style": "unix",
+            "charset": "UTF-8",
+            "escapeChar": "\\",
+            "quoteChar": '"',
+            "arrayMapFormat": "json",
+            "hiveSeparators": ["\x02", "\x03"],
+            "skipRowsBeforeHeader": 0,
+            "parseHeaderRow": True,
+            "skipRowsAfterHeader": 0,
+            "probableNumberOfRecords": 0,
+            "normalizeBooleans": False,
+            "normalizeDoubles": True,
+            "compress": "",
+        }
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "local"},
+            format_type="csv",
+            format_params=expanded_params,
+        )
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        # CREATE
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # Second plan — should be NOOP despite DSS having more keys
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
+    def test_format_params_detects_ui_drift(self, tmp_path: Path) -> None:
+        """Verify that changes to declared keys are still detected as drift."""
+        ds = DatasetResource(
+            name="my_ds",
+            dataset_type="Filesystem",
+            connection="local",
+            format_type="csv",
+            format_params={"separator": ","},
+        )
+
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "local"},
+            format_type="csv",
+            format_params={"separator": ",", "charset": "UTF-8"},
+        )
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        # CREATE + NOOP baseline
+        engine.apply(engine.plan([ds]))
+        assert engine.plan([ds]).changes[0].action == Action.NOOP
+
+        # Simulate UI drift: someone changed separator in DSS
+        raw["formatParams"]["separator"] = ";"
+
+        plan = engine.plan([ds])
+        change = plan.changes[0]
+        assert change.action == Action.UPDATE
+        assert change.diff is not None
+        assert change.diff["format_params"]["from"]["separator"] == ";"
+        assert change.diff["format_params"]["to"]["separator"] == ","
 
     def test_upload_roundtrip(self, tmp_path: Path) -> None:
         raw = _make_raw("UploadedFiles", managed=True)
