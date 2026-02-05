@@ -33,6 +33,7 @@ def _attrs(resource: DummyResource) -> dict[str, Any]:
 
 class InMemoryHandler(ResourceHandler[DummyResource]):
     def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
         self.store: dict[str, dict[str, Any]] = {}
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any] | None:
@@ -41,6 +42,7 @@ class InMemoryHandler(ResourceHandler[DummyResource]):
 
     def create(self, ctx: EngineContext, desired: DummyResource) -> dict[str, Any]:
         _ = ctx
+        self.calls.append(("create", desired.address))
         attrs = _attrs(desired)
         self.store[desired.address] = dict(attrs)
         return attrs
@@ -53,12 +55,14 @@ class InMemoryHandler(ResourceHandler[DummyResource]):
     ) -> dict[str, Any]:
         _ = ctx
         _ = prior
+        self.calls.append(("update", desired.address))
         attrs = _attrs(desired)
         self.store[desired.address] = dict(attrs)
         return attrs
 
     def delete(self, ctx: EngineContext, prior: ResourceInstance) -> None:
         _ = ctx
+        self.calls.append(("delete", prior.address))
         self.store.pop(prior.address, None)
 
 
@@ -133,6 +137,57 @@ def test_dependency_ordering(tmp_path: Path) -> None:
     actions = [(c.address, c.action) for c in plan.changes]
     assert actions[0] == ("dummy.b", Action.CREATE)
     assert actions[1] == ("dummy.a", Action.CREATE)
+
+
+def test_apply_uses_dependency_graph_not_plan_order(tmp_path: Path) -> None:
+    engine, handler = _engine(tmp_path)
+
+    b = DummyResource(name="b", value=1)
+    a = DummyResource(name="a", value=1, depends_on=[b.address])
+
+    plan = engine.plan([a, b])
+    scrambled = Plan(metadata=plan.metadata, changes=list(reversed(plan.changes)))
+
+    engine.apply(scrambled)
+
+    assert handler.calls[0] == ("create", "dummy.b")
+    assert handler.calls[1] == ("create", "dummy.a")
+
+
+def test_apply_runs_create_update_before_deletes(tmp_path: Path) -> None:
+    engine, handler = _engine(tmp_path)
+
+    engine.apply(engine.plan([DummyResource(name="r1", value=1)]))
+    handler.calls.clear()
+
+    plan = engine.plan([DummyResource(name="r2", value=2)])
+    scrambled = Plan(metadata=plan.metadata, changes=list(reversed(plan.changes)))
+    engine.apply(scrambled)
+
+    assert handler.calls[0] == ("create", "dummy.r2")
+    assert handler.calls[1] == ("delete", "dummy.r1")
+
+
+def test_destroy_plan_deletes_all_in_reverse_dependency_order(tmp_path: Path) -> None:
+    engine, handler = _engine(tmp_path)
+
+    b = DummyResource(name="b", value=1)
+    a = DummyResource(name="a", value=1, depends_on=[b.address])
+
+    engine.apply(engine.plan([a, b]))
+    handler.calls.clear()
+
+    destroy_plan = engine.plan([a, b], destroy=True)
+    actions = [(c.address, c.action) for c in destroy_plan.changes]
+    assert actions[0] == ("dummy.a", Action.DELETE)
+    assert actions[1] == ("dummy.b", Action.DELETE)
+
+    scrambled = Plan(metadata=destroy_plan.metadata, changes=list(reversed(destroy_plan.changes)))
+    engine.apply(scrambled)
+    assert handler.calls == [("delete", "dummy.a"), ("delete", "dummy.b")]
+
+    state = State.load(engine.state_path)
+    assert state.resources == {}
 
 
 def test_stale_plan_detection(tmp_path: Path) -> None:

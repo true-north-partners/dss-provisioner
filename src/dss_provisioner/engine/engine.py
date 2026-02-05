@@ -2,28 +2,29 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from dss_provisioner import __version__
-from dss_provisioner.core.state import (
-    ResourceInstance,
-    State,
-    compute_attributes_hash,
-    compute_state_digest,
-)
+from dss_provisioner.core.state import State, compute_attributes_hash, compute_state_digest
 from dss_provisioner.engine.errors import (
     ApplyCanceled,
     DuplicateAddressError,
     StalePlanError,
     StateProjectMismatchError,
-    UnknownResourceTypeError,
 )
 from dss_provisioner.engine.graph import DependencyGraph
 from dss_provisioner.engine.handlers import EngineContext
 from dss_provisioner.engine.lock import StateLock
+from dss_provisioner.engine.operations import (
+    BarrierOperation,
+    CreateOperation,
+    DeleteOperation,
+    UpdateOperation,
+)
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from dss_provisioner.core import DSSProvider
+    from dss_provisioner.engine.operations import Operation
     from dss_provisioner.engine.registry import ResourceTypeRegistry
     from dss_provisioner.resources.base import Resource
 
@@ -137,7 +139,7 @@ class DSSEngine:
         self, resources: Sequence[Resource], *, destroy: bool = False, refresh: bool = True
     ) -> Plan:
         # Only lock when refresh may write state.
-        lock_cm = StateLock(self._state_path) if refresh else _NoopContextManager()
+        lock_cm = StateLock(self._state_path) if refresh else contextlib.nullcontext()
         with lock_cm:
             state = self._load_state()
 
@@ -152,10 +154,7 @@ class DSSEngine:
                 if r.address in desired_by_addr:
                     raise DuplicateAddressError(r.address)
                 # Ensure resource type is known up front
-                try:
-                    self._registry.get(r.resource_type)
-                except UnknownResourceTypeError as e:
-                    raise e
+                self._registry.get(r.resource_type)
                 desired_by_addr[r.address] = r
 
             desired_addrs = set(desired_by_addr.keys())
@@ -269,6 +268,73 @@ class DSSEngine:
             dep_map[addr] = [d for d in inst.dependencies if d in delete_set]
         return DependencyGraph(delete_set, dep_map).reverse_topological_order()
 
+    def _operation_order(self, plan: Plan, state: State) -> list[Operation]:
+        """Compute a deterministic operation order using an operation graph."""
+        ops = self._build_apply_operations(plan, state)
+        dep_map = {k: op.deps for k, op in ops.items()}
+        order = DependencyGraph(ops.keys(), dep_map).topological_order()
+        return [ops[k] for k in order]
+
+    def _build_apply_operations(self, plan: Plan, state: State) -> dict[str, Operation]:
+        ops: dict[str, Operation] = {}
+        create_update_set: set[str] = set()
+        delete_set: set[str] = set()
+
+        for c in plan.changes:
+            op: Operation
+            match c.action:
+                case Action.NOOP:
+                    continue
+                case Action.CREATE:
+                    op = CreateOperation(key=c.address, change=c)
+                    create_update_set.add(c.address)
+                case Action.UPDATE:
+                    op = UpdateOperation(key=c.address, change=c)
+                    create_update_set.add(c.address)
+                case Action.DELETE:
+                    op = DeleteOperation(key=c.address, change=c)
+                    delete_set.add(c.address)
+                case _:
+                    raise ValueError(f"Unknown action: {c.action}")
+
+            if op.key in ops:
+                raise ValueError(f"Duplicate operation key in plan: {op.key}")
+            ops[op.key] = op
+
+        # create/update: dependencies must run before dependents
+        for addr in create_update_set:
+            op = ops[addr]
+            assert op.change is not None
+            if op.change.desired is None:
+                raise ValueError(f"Missing desired config for create/update: {addr}")
+            deps = op.change.desired.get("depends_on", [])
+            if deps is None:
+                deps = []
+            if not isinstance(deps, list) or not all(isinstance(d, str) for d in deps):
+                raise ValueError(f"Invalid depends_on for {addr}: expected list[str]")
+            op.deps.extend([d for d in deps if d in create_update_set])
+
+        # deletes: dependents must be deleted before dependencies (invert edges)
+        for addr in delete_set:
+            inst = state.resources.get(addr)
+            if inst is None:
+                raise ValueError(f"Missing state for delete operation: {addr}")
+            for dep in inst.dependencies:
+                if dep in delete_set:
+                    ops[dep].deps.append(addr)
+
+        # Ensure create/update runs before deletes (Terraform-like default ordering).
+        if create_update_set and delete_set:
+            barrier_key = "__engine__.apply_barrier"
+            if barrier_key in ops:
+                raise ValueError(f"Barrier operation key conflicts with plan: {barrier_key}")
+
+            ops[barrier_key] = BarrierOperation(key=barrier_key, deps=sorted(create_update_set))
+            for addr in delete_set:
+                ops[addr].deps.append(barrier_key)
+
+        return ops
+
     def apply(self, plan: Plan) -> ApplyResult:
         with StateLock(self._state_path):
             state = self._load_state_for_apply(plan)
@@ -285,61 +351,20 @@ class DSSEngine:
 
             ctx = self._ctx()
             applied: list[ResourceChange] = []
+            ordered_ops = self._operation_order(plan, state)
 
             try:
-                for change in plan.changes:
-                    if change.action == Action.NOOP:
+                for op in ordered_ops:
+                    did_change = op.run(ctx=ctx, state=state, registry=self._registry)
+                    if not did_change:
                         continue
 
-                    reg = self._registry.get(change.resource_type)
-                    handler = reg.handler
-
-                    now = datetime.now(UTC)
-                    if change.action == Action.CREATE:
-                        if change.desired is None:
-                            raise ValueError(f"Missing desired config for create: {change.address}")
-                        desired_obj = reg.model.model_validate(change.desired)
-                        attrs = handler.create(ctx, desired_obj)
-                        inst = ResourceInstance(
-                            address=change.address,
-                            resource_type=change.resource_type,
-                            name=desired_obj.name,
-                            attributes=attrs,
-                            attributes_hash=compute_attributes_hash(attrs),
-                            dependencies=list(desired_obj.depends_on),
-                            created_at=now,
-                            updated_at=now,
-                        )
-                        state.resources[change.address] = inst
-                    elif change.action == Action.UPDATE:
-                        if change.desired is None:
-                            raise ValueError(f"Missing desired config for update: {change.address}")
-                        desired_obj = reg.model.model_validate(change.desired)
-                        prior_inst = state.resources[change.address]
-                        attrs = handler.update(ctx, desired_obj, prior_inst)
-                        prior_inst.attributes = attrs
-                        prior_inst.attributes_hash = compute_attributes_hash(attrs)
-                        prior_inst.dependencies = list(desired_obj.depends_on)
-                        prior_inst.updated_at = now
-                    elif change.action == Action.DELETE:
-                        prior_inst = state.resources[change.address]
-                        handler.delete(ctx, prior_inst)
-                        del state.resources[change.address]
-                    else:
-                        raise ValueError(f"Unknown action: {change.action}")
+                    assert op.change is not None
 
                     state.serial += 1
                     state.save(self._state_path)
-                    applied.append(change)
+                    applied.append(op.change)
             except KeyboardInterrupt as e:  # pragma: no cover
                 raise ApplyCanceled("Apply canceled") from e
 
             return ApplyResult(applied=applied)
-
-
-class _NoopContextManager:
-    def __enter__(self) -> None:
-        return None
-
-    def __exit__(self, exc_type, exc, tb) -> None:
-        return None
