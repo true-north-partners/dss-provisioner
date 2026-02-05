@@ -62,6 +62,11 @@ def mock_dataset(mock_project: MagicMock) -> MagicMock:
     dataset.get_metadata.return_value = {"description": "", "tags": []}
     dataset.get_schema.return_value = {"columns": []}
 
+    # Default zone (default = no zone)
+    default_zone = MagicMock()
+    default_zone.id = "default"
+    dataset.get_zone.return_value = default_zone
+
     return dataset
 
 
@@ -259,30 +264,24 @@ class TestCreateSetsZoneWhenSpecified:
         self,
         ctx: EngineContext,
         handler: DatasetHandler,
-        mock_project: MagicMock,
+        mock_project: MagicMock,  # noqa: ARG002
         mock_dataset: MagicMock,
     ) -> None:
-        flow = MagicMock()
-        zone = MagicMock()
-        mock_project.get_flow.return_value = flow
-        flow.get_zone.return_value = zone
-
         desired = DatasetResource(name="my_ds", dataset_type="Filesystem", zone="raw")
         handler.create(ctx, desired)
 
-        flow.get_zone.assert_called_once_with("raw")
-        zone.add_item.assert_called_once_with(mock_dataset)
+        mock_dataset.move_to_zone.assert_called_once_with("raw")
 
     def test_no_zone_when_not_specified(
         self,
         ctx: EngineContext,
         handler: DatasetHandler,
-        mock_project: MagicMock,
-        mock_dataset: MagicMock,  # noqa: ARG002
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_dataset: MagicMock,
     ) -> None:
         desired = DatasetResource(name="my_ds", dataset_type="Filesystem")
         handler.create(ctx, desired)
-        mock_project.get_flow.assert_not_called()
+        mock_dataset.move_to_zone.assert_not_called()
 
 
 class TestRead:
@@ -305,7 +304,6 @@ class TestRead:
             address="dss_dataset.my_ds",
             resource_type="dss_dataset",
             name="my_ds",
-            attributes={"zone": None},
         )
         result = handler.read(ctx, prior)
 
@@ -417,6 +415,10 @@ def _setup_engine(
     dataset.get_metadata.return_value = meta or {"description": "", "tags": []}
     dataset.get_schema.return_value = schema or {"columns": []}
     dataset.exists.return_value = True
+
+    default_zone = MagicMock()
+    default_zone.id = "default"
+    dataset.get_zone.return_value = default_zone
 
     registry = ResourceTypeRegistry()
     handler = DatasetHandler()
