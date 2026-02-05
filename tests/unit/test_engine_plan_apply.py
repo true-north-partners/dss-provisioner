@@ -9,7 +9,7 @@ import pytest
 from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
-from dss_provisioner.engine.errors import StalePlanError
+from dss_provisioner.engine.errors import StalePlanError, UnknownResourceTypeError
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action, Plan
@@ -188,6 +188,25 @@ def test_destroy_plan_deletes_all_in_reverse_dependency_order(tmp_path: Path) ->
 
     state = State.load(engine.state_path)
     assert state.resources == {}
+
+
+def test_plan_refresh_false_fails_on_unregistered_delete(tmp_path: Path) -> None:
+    engine, _handler = _engine(tmp_path)
+
+    state = State(
+        project_key=engine.project_key,
+        resources={
+            "missing.r1": ResourceInstance(
+                address="missing.r1",
+                resource_type="missing",
+                name="r1",
+            )
+        },
+    )
+    state.save(engine.state_path)
+
+    with pytest.raises(UnknownResourceTypeError):
+        engine.plan([], refresh=False)
 
 
 def test_stale_plan_detection(tmp_path: Path) -> None:
