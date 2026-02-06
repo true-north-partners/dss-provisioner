@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal, Self
+from typing import Annotated, ClassVar, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import BeforeValidator, Field, model_validator
 
 from dss_provisioner.resources.base import Resource
+
+
+def _coerce_str_to_list(v: str | list[str]) -> list[str]:
+    if isinstance(v, str):
+        return [v]
+    return v
+
+
+StrOrList = Annotated[list[str], BeforeValidator(_coerce_str_to_list)]
 
 
 class RecipeResource(Resource):
@@ -14,10 +23,13 @@ class RecipeResource(Resource):
 
     resource_type: ClassVar[str] = "dss_recipe"
 
-    recipe_type: str
-    inputs: list[str] = Field(default_factory=list)
-    outputs: list[str] = Field(default_factory=list)
+    type: str
+    inputs: StrOrList = Field(default_factory=list)
+    outputs: StrOrList = Field(default_factory=list)
     zone: str | None = None
+
+    def reference_names(self) -> list[str]:
+        return [*self.inputs, *self.outputs]
 
 
 class SyncRecipeResource(RecipeResource):
@@ -25,7 +37,7 @@ class SyncRecipeResource(RecipeResource):
 
     resource_type: ClassVar[str] = "dss_sync_recipe"
 
-    recipe_type: Literal["sync"] = "sync"
+    type: Literal["sync"] = "sync"
 
 
 class PythonRecipeResource(RecipeResource):
@@ -33,7 +45,7 @@ class PythonRecipeResource(RecipeResource):
 
     resource_type: ClassVar[str] = "dss_python_recipe"
 
-    recipe_type: Literal["python"] = "python"
+    type: Literal["python"] = "python"
     code: str = ""
     code_env: str | None = None
     code_file: str | None = Field(default=None, exclude=True)
@@ -52,7 +64,7 @@ class SQLQueryRecipeResource(RecipeResource):
 
     resource_type: ClassVar[str] = "dss_sql_query_recipe"
 
-    recipe_type: Literal["sql_query"] = "sql_query"
+    type: Literal["sql_query"] = "sql_query"
     code: str = ""
     code_file: str | None = Field(default=None, exclude=True)
 

@@ -12,13 +12,14 @@ from dss_provisioner import __version__
 from dss_provisioner.core.state import State, compute_attributes_hash, compute_state_digest
 from dss_provisioner.engine.errors import (
     ApplyCanceled,
+    ApplyError,
     DuplicateAddressError,
     StalePlanError,
     StateProjectMismatchError,
     ValidationError,
 )
 from dss_provisioner.engine.graph import DependencyGraph
-from dss_provisioner.engine.handlers import EngineContext
+from dss_provisioner.engine.handlers import EngineContext, PlanContext
 from dss_provisioner.engine.lock import StateLock
 from dss_provisioner.engine.operations import (
     BarrierOperation,
@@ -147,6 +148,82 @@ class DSSEngine:
                 state.save(self._state_path)
             return state
 
+    @staticmethod
+    def _resolve_deps(desired_by_addr: dict[str, Resource]) -> dict[str, list[str]]:
+        """Build dependency map: explicit depends_on + implicit from reference_names.
+
+        Returns addr → full dep list without mutating the Resource objects.
+        """
+        name_to_addrs: dict[str, list[str]] = {}
+        for addr, r in desired_by_addr.items():
+            name_to_addrs.setdefault(r.name, []).append(addr)
+
+        dep_map: dict[str, list[str]] = {}
+        for addr, r in desired_by_addr.items():
+            deps = list(r.depends_on)
+            for ref in r.reference_names():
+                for ref_addr in name_to_addrs.get(ref, []):
+                    if ref_addr != addr and ref_addr not in deps:
+                        deps.append(ref_addr)
+            dep_map[addr] = deps
+        return dep_map
+
+    def _classify_change(
+        self,
+        addr: str,
+        resource: Resource,
+        state: State,
+        deps: list[str],
+    ) -> ResourceChange:
+        """Classify a single resource as CREATE, UPDATE, or NOOP."""
+        desired_dump = resource.model_dump(exclude_none=True, exclude={"address"})
+        desired_dump["depends_on"] = deps
+        planned = {k: v for k, v in desired_dump.items() if k != "depends_on"}
+
+        prior_inst = state.resources.get(addr)
+        if prior_inst is None:
+            return ResourceChange(
+                address=addr,
+                resource_type=resource.resource_type,
+                action=Action.CREATE,
+                desired=desired_dump,
+                planned=planned,
+            )
+
+        prior = dict(prior_inst.attributes)
+        diff = {
+            k: {"from": prior.get(k), "to": v}
+            for k, v in planned.items()
+            if _values_differ(v, prior.get(k))
+        }
+
+        return ResourceChange(
+            address=addr,
+            resource_type=resource.resource_type,
+            action=Action.UPDATE if diff else Action.NOOP,
+            desired=desired_dump,
+            prior=prior,
+            planned=planned,
+            diff=diff or None,
+        )
+
+    def _plan_deletes(self, state: State, addrs: set[str]) -> list[ResourceChange]:
+        """Plan delete changes for the given addresses in reverse dependency order."""
+        order = self._delete_order(state, addrs)
+        changes: list[ResourceChange] = []
+        for addr in order:
+            inst = state.resources[addr]
+            self._registry.get(inst.resource_type)  # fail early if unknown
+            changes.append(
+                ResourceChange(
+                    address=addr,
+                    resource_type=inst.resource_type,
+                    action=Action.DELETE,
+                    prior=dict(inst.attributes),
+                )
+            )
+        return changes
+
     def plan(
         self, resources: Sequence[Resource], *, destroy: bool = False, refresh: bool = True
     ) -> Plan:
@@ -165,7 +242,6 @@ class DSSEngine:
             for r in resources:
                 if r.address in desired_by_addr:
                     raise DuplicateAddressError(r.address)
-                # Ensure resource type is known up front
                 self._registry.get(r.resource_type)
                 desired_by_addr[r.address] = r
 
@@ -173,110 +249,30 @@ class DSSEngine:
             if not destroy:
                 ctx = self._ctx()
                 errors: list[str] = []
-                # Level 1: single-resource validation (cheap, no cross-refs)
                 for r in desired_by_addr.values():
                     reg = self._registry.get(r.resource_type)
                     errors.extend(reg.handler.validate(ctx, r))
-                # Level 2: cross-resource validation (may inspect siblings + state)
+                plan_ctx = PlanContext(desired_by_addr, state)
                 for r in desired_by_addr.values():
                     reg = self._registry.get(r.resource_type)
-                    errors.extend(reg.handler.validate_plan(ctx, r, desired_by_addr, state))
+                    errors.extend(reg.handler.validate_plan(ctx, r, plan_ctx))
                 if errors:
                     raise ValidationError(errors)
 
-            desired_addrs = set(desired_by_addr.keys())
-            state_addrs = set(state.resources.keys())
-
-            # Create/update/noop changes in desired topo order
-            desired_dep_map: dict[str, list[str]] = {}
-            for addr, r in desired_by_addr.items():
-                deps = [d for d in r.depends_on if d in desired_addrs]
-                desired_dep_map[addr] = deps
-
-            desired_order = DependencyGraph(desired_addrs, desired_dep_map).topological_order()
-
-            changes: list[ResourceChange] = []
+            dep_map = self._resolve_deps(desired_by_addr)
+            desired_addrs = set(desired_by_addr)
+            state_addrs = set(state.resources)
 
             if destroy:
-                # Plan deletes for everything in state, ordered by state dependencies.
-                delete_order = self._delete_order(state, state_addrs)
-                for addr in delete_order:
-                    inst = state.resources[addr]
-                    # Fail early if the plan would require a handler we don't have.
-                    self._registry.get(inst.resource_type)
-                    changes.append(
-                        ResourceChange(
-                            address=addr,
-                            resource_type=inst.resource_type,
-                            action=Action.DELETE,
-                            prior=dict(inst.attributes),
-                        )
-                    )
+                changes = self._plan_deletes(state, state_addrs)
             else:
-                for addr in desired_order:
-                    r = desired_by_addr[addr]
-                    desired_dump = r.model_dump(exclude_none=True, exclude={"address"})
-                    planned_dump = dict(desired_dump)
-                    planned_dump.pop("depends_on", None)
-
-                    prior_inst = state.resources.get(addr)
-                    if prior_inst is None:
-                        changes.append(
-                            ResourceChange(
-                                address=addr,
-                                resource_type=r.resource_type,
-                                action=Action.CREATE,
-                                desired=desired_dump,
-                                planned=planned_dump,
-                            )
-                        )
-                        continue
-
-                    diff: dict[str, Any] = {}
-                    for k, v in planned_dump.items():
-                        prior_v = prior_inst.attributes.get(k)
-                        if _values_differ(v, prior_v):
-                            diff[k] = {"from": prior_v, "to": v}
-
-                    if diff:
-                        changes.append(
-                            ResourceChange(
-                                address=addr,
-                                resource_type=r.resource_type,
-                                action=Action.UPDATE,
-                                desired=desired_dump,
-                                prior=dict(prior_inst.attributes),
-                                planned=planned_dump,
-                                diff=diff,
-                            )
-                        )
-                    else:
-                        changes.append(
-                            ResourceChange(
-                                address=addr,
-                                resource_type=r.resource_type,
-                                action=Action.NOOP,
-                                desired=desired_dump,
-                                prior=dict(prior_inst.attributes),
-                                planned=planned_dump,
-                            )
-                        )
-
-                # Deletes for resources in state not in desired
-                to_delete = state_addrs - desired_addrs
-                delete_order = self._delete_order(state, to_delete)
-                for addr in delete_order:
-                    inst = state.resources[addr]
-                    # Fail early if the plan would require a handler we don't have.
-                    self._registry.get(inst.resource_type)
-                    changes.append(
-                        ResourceChange(
-                            address=addr,
-                            resource_type=inst.resource_type,
-                            action=Action.DELETE,
-                            prior=dict(inst.attributes),
-                        )
-                    )
+                topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
+                order = DependencyGraph(desired_addrs, topo_deps).topological_order()
+                changes = [
+                    self._classify_change(addr, desired_by_addr[addr], state, dep_map[addr])
+                    for addr in order
+                ]
+                changes.extend(self._plan_deletes(state, state_addrs - desired_addrs))
 
             metadata = PlanMetadata(
                 project_key=self._project_key,
@@ -397,5 +393,7 @@ class DSSEngine:
                     applied.append(op.change)
             except KeyboardInterrupt as e:  # pragma: no cover
                 raise ApplyCanceled("Apply canceled") from e
+            except Exception as e:
+                raise ApplyError(applied=applied, address=op.key, message=str(e)) from e
 
             return ApplyResult(applied=applied)

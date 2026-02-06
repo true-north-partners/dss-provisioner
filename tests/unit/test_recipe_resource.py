@@ -15,11 +15,11 @@ from dss_provisioner.resources.recipe import (
 
 class TestRecipeResource:
     def test_address(self) -> None:
-        r = RecipeResource(name="my_recipe", recipe_type="sync")
+        r = RecipeResource(name="my_recipe", type="sync")
         assert r.address == "dss_recipe.my_recipe"
 
     def test_defaults(self) -> None:
-        r = RecipeResource(name="my_recipe", recipe_type="sync")
+        r = RecipeResource(name="my_recipe", type="sync")
         assert r.inputs == []
         assert r.outputs == []
         assert r.zone is None
@@ -29,18 +29,18 @@ class TestRecipeResource:
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
-            RecipeResource(name="r", recipe_type="sync", unknown_field="x")  # type: ignore[call-arg]
+            RecipeResource(name="r", type="sync", unknown_field="x")  # type: ignore[call-arg]
 
     def test_model_dump_shape(self) -> None:
         r = RecipeResource(
             name="my_recipe",
-            recipe_type="sync",
+            type="sync",
             inputs=["ds_a"],
             outputs=["ds_b"],
         )
         dump = r.model_dump(exclude_none=True, exclude={"address"})
         assert dump["name"] == "my_recipe"
-        assert dump["recipe_type"] == "sync"
+        assert dump["type"] == "sync"
         assert dump["inputs"] == ["ds_a"]
         assert dump["outputs"] == ["ds_b"]
         assert "address" not in dump
@@ -53,11 +53,11 @@ class TestSyncRecipeResource:
 
     def test_defaults(self) -> None:
         r = SyncRecipeResource(name="my_sync")
-        assert r.recipe_type == "sync"
+        assert r.type == "sync"
 
-    def test_recipe_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
-            SyncRecipeResource(name="r", recipe_type="python")  # type: ignore[arg-type]
+            SyncRecipeResource(name="r", type="python")  # type: ignore[arg-type]
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
@@ -71,13 +71,13 @@ class TestPythonRecipeResource:
 
     def test_defaults(self) -> None:
         r = PythonRecipeResource(name="my_python")
-        assert r.recipe_type == "python"
+        assert r.type == "python"
         assert r.code == ""
         assert r.code_env is None
 
-    def test_recipe_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
-            PythonRecipeResource(name="r", recipe_type="sync")  # type: ignore[arg-type]
+            PythonRecipeResource(name="r", type="sync")  # type: ignore[arg-type]
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
@@ -90,7 +90,7 @@ class TestPythonRecipeResource:
             code_env="py39",
         )
         dump = r.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["recipe_type"] == "python"
+        assert dump["type"] == "python"
         assert dump["code"] == "print('hello')"
         assert dump["code_env"] == "py39"
 
@@ -123,12 +123,12 @@ class TestSQLQueryRecipeResource:
 
     def test_defaults(self) -> None:
         r = SQLQueryRecipeResource(name="my_sql")
-        assert r.recipe_type == "sql_query"
+        assert r.type == "sql_query"
         assert r.code == ""
 
-    def test_recipe_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
-            SQLQueryRecipeResource(name="r", recipe_type="python")  # type: ignore[arg-type]
+            SQLQueryRecipeResource(name="r", type="python")  # type: ignore[arg-type]
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
@@ -140,7 +140,7 @@ class TestSQLQueryRecipeResource:
             code="SELECT 1",
         )
         dump = r.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["recipe_type"] == "sql_query"
+        assert dump["type"] == "sql_query"
         assert dump["code"] == "SELECT 1"
 
     def test_code_file_defaults_none(self) -> None:

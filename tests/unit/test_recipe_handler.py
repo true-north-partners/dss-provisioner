@@ -11,7 +11,7 @@ from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
 from dss_provisioner.engine.dataset_handler import DatasetHandler
-from dss_provisioner.engine.handlers import EngineContext
+from dss_provisioner.engine.handlers import EngineContext, PlanContext
 from dss_provisioner.engine.recipe_handler import (
     PythonRecipeHandler,
     RecipeHandler,
@@ -269,7 +269,7 @@ class TestRead:
 
         assert result is not None
         assert result["name"] == "my_sync"
-        assert result["recipe_type"] == "sync"
+        assert result["type"] == "sync"
         assert result["inputs"] == ["ds_a"]
         assert result["outputs"] == ["ds_b"]
         assert result["description"] == "desc"
@@ -550,9 +550,9 @@ class TestValidatePlanSQLInput:
             desired.address: desired,
             fs_ds.address: fs_ds,
         }
-        state = State(project_key="PRJ")
+        plan_ctx = PlanContext(all_desired, State(project_key="PRJ"))
 
-        errors = sql_handler.validate_plan(ctx, desired, all_desired, state)
+        errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
         assert len(errors) == 1
         assert "SQL connection" in errors[0]
 
@@ -573,9 +573,9 @@ class TestValidatePlanSQLInput:
             desired.address: desired,
             sf_ds.address: sf_ds,
         }
-        state = State(project_key="PRJ")
+        plan_ctx = PlanContext(all_desired, State(project_key="PRJ"))
 
-        errors = sql_handler.validate_plan(ctx, desired, all_desired, state)
+        errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
         assert errors == []
 
     def test_accepts_state_sql_input(
@@ -594,12 +594,13 @@ class TestValidatePlanSQLInput:
                     address="dss_dataset.pg_ds",
                     resource_type="dss_dataset",
                     name="pg_ds",
-                    attributes={"dataset_type": "PostgreSQL"},
+                    attributes={"type": "PostgreSQL"},
                 )
             },
         )
+        plan_ctx = PlanContext(all_desired, state)
 
-        errors = sql_handler.validate_plan(ctx, desired, all_desired, state)
+        errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
         assert errors == []
 
 
@@ -736,7 +737,7 @@ class TestSQLQueryRecipeRoundtrip:
             address="dss_dataset.in_ds",
             resource_type="dss_dataset",
             name="in_ds",
-            attributes={"dataset_type": "PostgreSQL"},
+            attributes={"type": "PostgreSQL"},
         )
         engine, _project, _recipe = _setup_engine(
             tmp_path,

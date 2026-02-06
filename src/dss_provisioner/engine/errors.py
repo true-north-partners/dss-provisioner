@@ -1,5 +1,9 @@
 """Engine error types."""
 
+from __future__ import annotations
+
+from typing import Any
+
 
 class EngineError(Exception):
     """Base exception for engine errors."""
@@ -56,6 +60,22 @@ class ValidationError(EngineError):
         self.errors = errors
         msg = "Validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
         super().__init__(msg)
+
+
+class ApplyError(EngineError):
+    """Raised when an apply fails mid-way through.
+
+    Carries the partial result (what was applied before the failure) so
+    callers can inspect progress.  The original exception is chained via
+    ``__cause__``.
+    """
+
+    def __init__(self, *, applied: list[Any], address: str, message: str) -> None:
+        from dss_provisioner.engine.types import ApplyResult
+
+        self.result = ApplyResult(applied=applied)
+        self.address = address
+        super().__init__(f"Apply failed on {address}: {message}")
 
 
 class ApplyCanceled(EngineError):

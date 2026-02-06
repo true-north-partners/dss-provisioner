@@ -73,7 +73,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
 
         variables: dict[str, str] = {"projectKey": ctx.project_key}
         try:
-            for k, v in ctx.provider.client.get_variables().items():
+            for k, v in ctx.provider.client.get_global_variables().items():
                 if isinstance(v, str):
                     variables[k] = v
             project_vars = self._get_project(ctx).get_variables()
@@ -142,7 +142,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         dataset: DSSDataset,
         resource_type: str,
         name: str,
-        dataset_type_fallback: str = "",
+        type_fallback: str = "",
     ) -> dict[str, Any]:
         """Extract dataset attributes from DSS, keyed to match model_dump output."""
         settings = dataset.get_settings()
@@ -164,7 +164,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
             "name": name,
             "description": meta.get("description", ""),
             "tags": meta.get("tags", []),
-            "dataset_type": raw.get("type", dataset_type_fallback),
+            "type": raw.get("type", type_fallback),
             "connection": raw.get("params", {}).get("connection"),
             "managed": raw.get("managed", False),
             "format_type": raw.get("formatType"),
@@ -190,7 +190,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
                 builder.with_store_into(desired.connection)
             dataset = builder.create()
         else:
-            dataset = project.create_dataset(desired.name, desired.dataset_type, params=params)
+            dataset = project.create_dataset(desired.name, desired.type, params=params)
 
         settings = dataset.get_settings()
         self._apply_format(settings, desired)
@@ -200,9 +200,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(
-            ctx, dataset, desired.resource_type, desired.name, desired.dataset_type
-        )
+        return self._read_attrs(ctx, dataset, desired.resource_type, desired.name, desired.type)
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any] | None:
         """Read dataset from DSS. Returns None if deleted externally."""
@@ -230,9 +228,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(
-            ctx, dataset, desired.resource_type, desired.name, desired.dataset_type
-        )
+        return self._read_attrs(ctx, dataset, desired.resource_type, desired.name, desired.type)
 
     def delete(self, ctx: EngineContext, prior: ResourceInstance) -> None:
         """Delete a dataset from DSS."""
