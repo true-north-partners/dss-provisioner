@@ -275,7 +275,8 @@ class PythonRecipeHandler(CodeRecipeHandler):
             needs_save = True
         elif not creating:
             # On update, clear envSelection when code_env is None.
-            raw_def.get("params", {}).pop("envSelection", None)
+            if "params" in raw_def:
+                raw_def["params"].pop("envSelection", None)
 
         return needs_save
 
