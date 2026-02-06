@@ -29,6 +29,11 @@ lint *files:
 format *files:
     uv run ruff format {{ files }}
 
+[doc('Check formatting (no changes)')]
+[group('ruff')]
+format_check *files:
+    uv run ruff format --check {{ files }}
+
 [doc('Lint changed files vs main')]
 [group('ruff')]
 lint_changed: (_on_changed "uv run ruff check")
@@ -39,7 +44,7 @@ format_changed: (_on_changed "uv run ruff format")
 
 [doc('Lint + format + type-check')]
 [group('ruff')]
-check: lint format type_check
+check: lint format_check type_check
 
 # --- ty ---
 
