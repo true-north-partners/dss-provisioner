@@ -5,8 +5,9 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from dss_provisioner import __version__
 from dss_provisioner.core.state import State, compute_attributes_hash, compute_state_digest
@@ -28,6 +29,9 @@ from dss_provisioner.engine.operations import (
     UpdateOperation,
 )
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
+from dss_provisioner.engine.variables import get_variables, resolve_variables
+
+ProgressCallback = Callable[[ResourceChange, Literal["start", "done"]], None]
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -174,11 +178,13 @@ class DSSEngine:
         resource: Resource,
         state: State,
         deps: list[str],
+        variables: dict[str, str],
     ) -> ResourceChange:
         """Classify a single resource as CREATE, UPDATE, or NOOP."""
         desired_dump = resource.model_dump(exclude_none=True, exclude={"address"})
         desired_dump["depends_on"] = deps
         planned = {k: v for k, v in desired_dump.items() if k != "depends_on"}
+        resolved_planned = resolve_variables(planned, variables)
 
         prior_inst = state.resources.get(addr)
         if prior_inst is None:
@@ -187,13 +193,13 @@ class DSSEngine:
                 resource_type=resource.resource_type,
                 action=Action.CREATE,
                 desired=desired_dump,
-                planned=planned,
+                planned=resolved_planned,
             )
 
         prior = dict(prior_inst.attributes)
         diff = {
             k: {"from": prior.get(k), "to": v}
-            for k, v in planned.items()
+            for k, v in resolved_planned.items()
             if _values_differ(v, prior.get(k))
         }
 
@@ -203,7 +209,7 @@ class DSSEngine:
             action=Action.UPDATE if diff else Action.NOOP,
             desired=desired_dump,
             prior=prior,
-            planned=planned,
+            planned=resolved_planned,
             diff=diff or None,
         )
 
@@ -266,10 +272,13 @@ class DSSEngine:
             if destroy:
                 changes = self._plan_deletes(state, state_addrs)
             else:
+                variables = get_variables(ctx)
                 topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
                 order = DependencyGraph(desired_addrs, topo_deps).topological_order()
                 changes = [
-                    self._classify_change(addr, desired_by_addr[addr], state, dep_map[addr])
+                    self._classify_change(
+                        addr, desired_by_addr[addr], state, dep_map[addr], variables
+                    )
                     for addr in order
                 ]
                 changes.extend(self._plan_deletes(state, state_addrs - desired_addrs))
@@ -362,7 +371,7 @@ class DSSEngine:
 
         return ops
 
-    def apply(self, plan: Plan) -> ApplyResult:
+    def apply(self, plan: Plan, *, progress: ProgressCallback | None = None) -> ApplyResult:
         with StateLock(self._state_path):
             state = self._load_state_for_apply(plan)
             if state.project_key != self._project_key:
@@ -382,11 +391,15 @@ class DSSEngine:
 
             try:
                 for op in ordered_ops:
+                    if progress and op.change is not None:
+                        progress(op.change, "start")
                     did_change = op.run(ctx=ctx, state=state, registry=self._registry)
                     if not did_change:
                         continue
 
                     assert op.change is not None
+                    if progress:
+                        progress(op.change, "done")
 
                     state.serial += 1
                     state.save(self._state_path)

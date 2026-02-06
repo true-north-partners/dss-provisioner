@@ -10,7 +10,9 @@ from dss_provisioner.config.loader import ConfigError, load_config
 from dss_provisioner.config.registry import default_registry
 from dss_provisioner.config.schema import Config, ProviderConfig
 from dss_provisioner.core.provider import ApiKeyAuth, DSSProvider
-from dss_provisioner.engine.engine import DSSEngine
+from dss_provisioner.core.state import State
+from dss_provisioner.engine.engine import DSSEngine, ProgressCallback
+from dss_provisioner.engine.types import Action, ResourceChange
 from dss_provisioner.resources.loader import resolve_code_files
 
 if TYPE_CHECKING:
@@ -22,11 +24,14 @@ __all__ = [
     "Config",
     "ConfigError",
     "ProviderConfig",
+    "State",
     "apply",
+    "drift",
     "load",
     "load_config",
     "plan",
     "plan_and_apply",
+    "refresh",
 ]
 
 
@@ -58,13 +63,63 @@ def plan(config: Config, *, destroy: bool = False, refresh: bool = True) -> Plan
     return engine.plan(resources, destroy=destroy, refresh=refresh)
 
 
-def apply(plan_obj: Plan, config: Config) -> ApplyResult:
+def apply(
+    plan_obj: Plan, config: Config, *, progress: ProgressCallback | None = None
+) -> ApplyResult:
     """Apply a previously computed plan."""
     engine = _engine_from_config(config)
-    return engine.apply(plan_obj)
+    return engine.apply(plan_obj, progress=progress)
 
 
 def plan_and_apply(config: Config, *, destroy: bool = False, refresh: bool = True) -> ApplyResult:
     """Plan and apply in one step."""
     plan_obj = plan(config, destroy=destroy, refresh=refresh)
     return apply(plan_obj, config)
+
+
+def refresh(config: Config) -> State:
+    """Refresh state from the live DSS instance."""
+    engine = _engine_from_config(config)
+    return engine.refresh()
+
+
+def drift(config: Config) -> list[ResourceChange]:
+    """Detect drift between state file and live DSS."""
+    engine = _engine_from_config(config)
+    state = State.load_or_create(engine.state_path, config.provider.project)
+    old_attrs = {addr: inst.attributes.copy() for addr, inst in state.resources.items()}
+    new_state = engine.refresh()
+    changes: list[ResourceChange] = []
+    for addr, inst in new_state.resources.items():
+        old = old_attrs.get(addr)
+        if old is None:
+            continue
+        if old != inst.attributes:
+            all_keys = set(old) | set(inst.attributes)
+            diff = {
+                k: {"from": old.get(k), "to": inst.attributes.get(k)}
+                for k in all_keys
+                if old.get(k) != inst.attributes.get(k)
+            }
+            changes.append(
+                ResourceChange(
+                    address=addr,
+                    resource_type=inst.resource_type,
+                    action=Action.UPDATE,
+                    prior=old,
+                    planned=dict(inst.attributes),
+                    diff=diff,
+                )
+            )
+    for addr in set(old_attrs) - set(new_state.resources):
+        changes.append(
+            ResourceChange(
+                address=addr,
+                resource_type=state.resources[addr].resource_type
+                if addr in state.resources
+                else "unknown",
+                action=Action.DELETE,
+                prior=old_attrs[addr],
+            )
+        )
+    return changes

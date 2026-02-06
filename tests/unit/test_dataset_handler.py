@@ -10,10 +10,11 @@ import pytest
 from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
-from dss_provisioner.engine.dataset_handler import DatasetHandler, _resolve_variables
+from dss_provisioner.engine.dataset_handler import DatasetHandler
 from dss_provisioner.engine.handlers import EngineContext
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action
+from dss_provisioner.engine.variables import resolve_variables
 from dss_provisioner.resources.dataset import (
     Column,
     DatasetResource,
@@ -735,6 +736,26 @@ class TestEngineIntegrationRoundtrip:
         plan2 = engine.plan([ds])
         assert plan2.changes[0].action == Action.NOOP
 
+    def test_variable_in_config_resolves_to_noop(self, tmp_path: Path) -> None:
+        """Issue #11: ${projectKey} in config must not cause perpetual drift."""
+        raw = _make_raw(
+            "Filesystem",
+            params={"connection": "filesystem_managed", "path": "${projectKey}/my_data"},
+        )
+        engine, _project, _dataset = _setup_engine(tmp_path, raw)
+
+        ds = FilesystemDatasetResource(
+            name="fs_ds", connection="filesystem_managed", path="${projectKey}/my_data"
+        )
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # Second plan: ${projectKey} in config should resolve to PRJ for comparison,
+        # matching the resolved value in state — no drift.
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
     def test_format_params_noop_when_dss_expands_defaults(self, tmp_path: Path) -> None:
         """Regression test for issue #10: DSS expands format_params with defaults."""
         # User declares minimal format_params
@@ -832,29 +853,29 @@ class TestResolveVariables:
     VARS: ClassVar[dict[str, str]] = {"projectKey": "PRJ"}
 
     def test_replaces_variable_in_string(self) -> None:
-        assert _resolve_variables("${projectKey}/data", self.VARS) == "PRJ/data"
+        assert resolve_variables("${projectKey}/data", self.VARS) == "PRJ/data"
 
     def test_leaves_plain_string_unchanged(self) -> None:
-        assert _resolve_variables("no_vars_here", self.VARS) == "no_vars_here"
+        assert resolve_variables("no_vars_here", self.VARS) == "no_vars_here"
 
     def test_replaces_in_nested_dict(self) -> None:
         value = {"path": "${projectKey}/data", "nested": {"ref": "${projectKey}/other"}}
-        result = _resolve_variables(value, {"projectKey": "TEST"})
+        result = resolve_variables(value, {"projectKey": "TEST"})
         assert result == {"path": "TEST/data", "nested": {"ref": "TEST/other"}}
 
     def test_replaces_in_list(self) -> None:
         value = ["${projectKey}/a", "${projectKey}/b"]
-        assert _resolve_variables(value, self.VARS) == ["PRJ/a", "PRJ/b"]
+        assert resolve_variables(value, self.VARS) == ["PRJ/a", "PRJ/b"]
 
     def test_multiple_variables(self) -> None:
         variables = {"projectKey": "PRJ", "user": "admin"}
         value = "${projectKey}/uploads/${user}"
-        assert _resolve_variables(value, variables) == "PRJ/uploads/admin"
+        assert resolve_variables(value, variables) == "PRJ/uploads/admin"
 
     def test_leaves_non_strings_unchanged(self) -> None:
-        assert _resolve_variables(42, self.VARS) == 42
-        assert _resolve_variables(True, self.VARS) is True
-        assert _resolve_variables(None, self.VARS) is None
+        assert resolve_variables(42, self.VARS) == 42
+        assert resolve_variables(True, self.VARS) is True
+        assert resolve_variables(None, self.VARS) is None
 
     def test_unknown_variables_left_as_is(self) -> None:
-        assert _resolve_variables("${unknownVar}/data", self.VARS) == "${unknownVar}/data"
+        assert resolve_variables("${unknownVar}/data", self.VARS) == "${unknownVar}/data"

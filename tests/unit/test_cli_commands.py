@@ -1,0 +1,302 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from typer.testing import CliRunner
+
+from dss_provisioner.cli import app
+from dss_provisioner.config.loader import ConfigError
+from dss_provisioner.engine.errors import ApplyError, ValidationError
+from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
+
+runner = CliRunner()
+
+_META = PlanMetadata(
+    project_key="TEST",
+    destroy=False,
+    refresh=True,
+    state_lineage="lineage-1",
+    state_serial=0,
+    state_digest="digest",
+    config_digest="cdigest",
+    engine_version="0.1.0",
+)
+
+_NOOP_PLAN = Plan(
+    metadata=_META,
+    changes=[
+        ResourceChange(
+            address="dss_dataset.ok",
+            resource_type="dss_dataset",
+            action=Action.NOOP,
+        )
+    ],
+)
+
+_CREATE_PLAN = Plan(
+    metadata=_META,
+    changes=[
+        ResourceChange(
+            address="dss_dataset.new",
+            resource_type="dss_dataset",
+            action=Action.CREATE,
+            planned={"connection": "fs_managed", "path": "/data/raw"},
+        )
+    ],
+)
+
+
+def _strip_ansi(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
+def _mock_config() -> MagicMock:
+    cfg = MagicMock()
+    cfg.provider.project = "TEST"
+    cfg.state_path = Path(".dss-state.json")
+    return cfg
+
+
+class TestVersion:
+    def test_version_flag(self) -> None:
+        result = runner.invoke(app, ["--version"])
+        assert result.exit_code == 0
+        assert "dss-provisioner" in result.stdout
+
+    def test_short_version_flag(self) -> None:
+        result = runner.invoke(app, ["-V"])
+        assert result.exit_code == 0
+        assert "dss-provisioner" in result.stdout
+
+
+class TestPlanCommand:
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_no_changes_exits_0(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _NOOP_PLAN
+
+        result = runner.invoke(app, ["plan", "--no-color", "--config", "test.yaml"])
+        assert result.exit_code == 0
+        assert "No changes" in result.stdout
+
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_changes_exits_2(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+
+        result = runner.invoke(app, ["plan", "--no-color"])
+        assert result.exit_code == 2
+        assert "dss_dataset.new" in result.stdout
+
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_out_saves_plan(
+        self, mock_load: MagicMock, mock_plan: MagicMock, tmp_path: Path
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+        out_file = tmp_path / "plan.json"
+
+        result = runner.invoke(app, ["plan", "--no-color", "--out", str(out_file)])
+        assert result.exit_code == 2
+        assert out_file.exists()
+        assert "Plan saved" in result.stdout
+
+    @patch("dss_provisioner.config.load")
+    def test_config_error_exits_1(self, mock_load: MagicMock) -> None:
+        mock_load.side_effect = ConfigError("bad config")
+
+        result = runner.invoke(app, ["plan", "--no-color"])
+        assert result.exit_code == 1
+        assert "Configuration error" in result.output
+
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_no_refresh_flag(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _NOOP_PLAN
+
+        runner.invoke(app, ["plan", "--no-color", "--no-refresh"])
+        mock_plan.assert_called_once()
+        _, kwargs = mock_plan.call_args
+        assert kwargs["refresh"] is False
+
+
+class TestApplyCommand:
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_no_changes_message(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _NOOP_PLAN
+
+        result = runner.invoke(app, ["apply", "--no-color"])
+        assert result.exit_code == 0
+        assert "No changes" in result.stdout
+
+    @patch("dss_provisioner.config.apply")
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_auto_approve_skips_prompt(
+        self, mock_load: MagicMock, mock_plan: MagicMock, mock_apply: MagicMock
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+        mock_apply.return_value = ApplyResult(applied=_CREATE_PLAN.changes)
+
+        result = runner.invoke(app, ["apply", "--no-color", "--auto-approve"])
+        assert result.exit_code == 0
+        assert "Apply complete!" in result.stdout
+
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_user_decline_aborts(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+
+        result = runner.invoke(app, ["apply", "--no-color"], input="n\n")
+        assert result.exit_code == 1
+
+    @patch("dss_provisioner.config.apply")
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_apply_error_shows_partial(
+        self, mock_load: MagicMock, mock_plan: MagicMock, mock_apply: MagicMock
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+        mock_apply.side_effect = ApplyError(
+            applied=[], address="dss_dataset.new", message="API error"
+        )
+
+        result = runner.invoke(app, ["apply", "--no-color", "--auto-approve"])
+        assert result.exit_code == 1
+        assert "Apply failed" in result.output
+
+
+class TestDestroyCommand:
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_no_resources_exits_0(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _NOOP_PLAN
+
+        result = runner.invoke(app, ["destroy", "--no-color"])
+        assert result.exit_code == 0
+        assert "No resources to destroy" in result.stdout
+
+    @patch("dss_provisioner.config.apply")
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_auto_approve_works(
+        self, mock_load: MagicMock, mock_plan: MagicMock, mock_apply: MagicMock
+    ) -> None:
+        delete_plan = Plan(
+            metadata=_META,
+            changes=[
+                ResourceChange(
+                    address="dss_dataset.old",
+                    resource_type="dss_dataset",
+                    action=Action.DELETE,
+                    prior={"connection": "fs_managed"},
+                )
+            ],
+        )
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = delete_plan
+        mock_apply.return_value = ApplyResult(applied=delete_plan.changes)
+
+        result = runner.invoke(app, ["destroy", "--no-color", "--auto-approve"])
+        assert result.exit_code == 0
+        assert "Apply complete!" in result.stdout
+
+
+class TestRefreshCommand:
+    @patch("dss_provisioner.config.refresh")
+    @patch("dss_provisioner.config.load")
+    def test_outputs_resource_count(self, mock_load: MagicMock, mock_refresh: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_state = MagicMock()
+        mock_state.resources = {"dss_dataset.a": None, "dss_dataset.b": None}
+        mock_refresh.return_value = mock_state
+
+        result = runner.invoke(app, ["refresh", "--no-color"])
+        assert result.exit_code == 0
+        assert "2 resources" in result.stdout
+
+    @patch("dss_provisioner.config.refresh")
+    @patch("dss_provisioner.config.load")
+    def test_single_resource_no_plural(self, mock_load: MagicMock, mock_refresh: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_state = MagicMock()
+        mock_state.resources = {"dss_dataset.a": None}
+        mock_refresh.return_value = mock_state
+
+        result = runner.invoke(app, ["refresh", "--no-color"])
+        assert "1 resource " in result.stdout
+
+
+class TestDriftCommand:
+    @patch("dss_provisioner.config.drift")
+    @patch("dss_provisioner.config.load")
+    def test_no_drift_exits_0(self, mock_load: MagicMock, mock_drift: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_drift.return_value = []
+
+        result = runner.invoke(app, ["drift", "--no-color"])
+        assert result.exit_code == 0
+        assert "No drift detected" in result.stdout
+
+    @patch("dss_provisioner.config.drift")
+    @patch("dss_provisioner.config.load")
+    def test_drift_shows_changes(self, mock_load: MagicMock, mock_drift: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_drift.return_value = [
+            ResourceChange(
+                address="dss_dataset.raw",
+                resource_type="dss_dataset",
+                action=Action.UPDATE,
+                diff={"path": {"from": "/old", "to": "/new"}},
+            )
+        ]
+
+        result = runner.invoke(app, ["drift", "--no-color"])
+        assert result.exit_code == 0
+        assert "Drift detected" in result.stdout
+        assert "dss_dataset.raw" in result.stdout
+
+
+class TestValidateCommand:
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_valid_config(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _NOOP_PLAN
+
+        result = runner.invoke(app, ["validate", "--no-color"])
+        assert result.exit_code == 0
+        assert "Configuration is valid" in result.stdout
+
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_validation_error(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.side_effect = ValidationError(["field X is required", "field Y is invalid"])
+
+        result = runner.invoke(app, ["validate", "--no-color"])
+        assert result.exit_code == 1
+        assert "Validation failed" in result.output
+
+
+class TestNoColor:
+    @patch("dss_provisioner.config.plan")
+    @patch("dss_provisioner.config.load")
+    def test_no_color_strips_ansi(self, mock_load: MagicMock, mock_plan: MagicMock) -> None:
+        mock_load.return_value = _mock_config()
+        mock_plan.return_value = _CREATE_PLAN
+
+        result = runner.invoke(app, ["plan", "--no-color"])
+        assert "\x1b[" not in result.stdout

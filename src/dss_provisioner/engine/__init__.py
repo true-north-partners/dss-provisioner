@@ -1,6 +1,6 @@
 """Plan and apply engine for DSS resources."""
 
-from dss_provisioner.engine.engine import DSSEngine
+from dss_provisioner.engine.engine import DSSEngine, ProgressCallback
 from dss_provisioner.engine.errors import (
     ApplyCanceled,
     ApplyError,
@@ -30,6 +30,7 @@ __all__ = [
     "Plan",
     "PlanContext",
     "PlanMetadata",
+    "ProgressCallback",
     "ResourceChange",
     "ResourceHandler",
     "ResourceTypeRegistration",
