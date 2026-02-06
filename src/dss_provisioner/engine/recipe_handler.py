@@ -2,46 +2,44 @@
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from dss_provisioner.engine.handlers import ResourceHandler
-from dss_provisioner.resources.recipe import PythonRecipeResource, SQLQueryRecipeResource
+from dss_provisioner.engine.handlers import PlanContext, ResourceHandler
+from dss_provisioner.resources.dataset import DatasetResource
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from dataikuapi.dss.project import DSSProject
     from dataikuapi.dss.recipe import DSSRecipe
 
-    from dss_provisioner.core.state import ResourceInstance, State
+    from dss_provisioner.core.state import ResourceInstance
     from dss_provisioner.engine.handlers import EngineContext
-    from dss_provisioner.resources.base import Resource
-    from dss_provisioner.resources.recipe import RecipeResource
-
-logger = logging.getLogger(__name__)
-
-# Dataset types that expose a SQL connection.
-_SQL_DATASET_TYPES: set[str] = {"PostgreSQL", "Snowflake", "Oracle", "MySQL"}
-
-
-def _is_sql_dataset(ref: str, all_desired: Mapping[str, Resource], state: State) -> bool:
-    """Check whether *ref* names a dataset backed by a SQL connection."""
-    # Check co-planned resources.
-    for r in all_desired.values():
-        if r.name == ref and getattr(r, "dataset_type", None) in _SQL_DATASET_TYPES:
-            return True
-    # Check existing resources in state.
-    return any(
-        inst.name == ref and inst.attributes.get("dataset_type") in _SQL_DATASET_TYPES
-        for inst in state.resources.values()
+    from dss_provisioner.resources.recipe import (
+        PythonRecipeResource,
+        RecipeResource,
+        SQLQueryRecipeResource,
+        SyncRecipeResource,  # noqa: F401 — used in RecipeHandler["SyncRecipeResource"] base
     )
 
+R = TypeVar("R", bound="RecipeResource")
 
-class RecipeHandler(ResourceHandler["RecipeResource"]):
+
+def _read_code_payload(settings: Any) -> str:
+    """Read the code payload from recipe settings."""
+    return settings.str_payload or ""
+
+
+def _apply_code_payload(settings: Any, code: str, *, creating: bool) -> bool:
+    """Set code payload on recipe settings. Return True if settings.save() is needed."""
+    if creating and not code:
+        return False
+    settings.set_payload(code)
+    return True
+
+
+class RecipeHandler(ResourceHandler[R]):
     """Base CRUD handler for DSS recipes.
 
-    Subclasses override hook methods to handle type-specific behaviour
+    Subclasses override hook methods to handle type-specific behavior
     (code payloads, code environments, validation rules).
     """
 
@@ -78,14 +76,14 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
             return None
         return None
 
-    def _apply_metadata(self, recipe: DSSRecipe, desired: RecipeResource) -> None:
+    def _apply_metadata(self, recipe: DSSRecipe, desired: R) -> None:
         """Set description and tags via metadata."""
         meta = recipe.get_metadata()
         meta["description"] = desired.description
         meta["tags"] = list(desired.tags)
         recipe.set_metadata(meta)
 
-    def _apply_zone(self, recipe: DSSRecipe, desired: RecipeResource) -> None:
+    def _apply_zone(self, recipe: DSSRecipe, desired: R) -> None:
         """Move recipe to a flow zone if specified."""
         if desired.zone is None:
             return
@@ -102,7 +100,7 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
         self,
         settings: Any,
         raw_def: dict[str, Any],
-        desired: RecipeResource,
+        desired: R,
         *,
         creating: bool,
     ) -> bool:
@@ -127,7 +125,7 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
             "name": name,
             "description": meta.get("description", ""),
             "tags": meta.get("tags", []),
-            "recipe_type": raw_def.get("type", ""),
+            "type": raw_def.get("type", ""),
             "inputs": settings.get_flat_input_refs(),
             "outputs": settings.get_flat_output_refs(),
             "zone": self._read_zone(ctx, name),
@@ -138,7 +136,7 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
 
     # -- Validation -----------------------------------------------------------
 
-    def validate(self, ctx: EngineContext, desired: RecipeResource) -> list[str]:
+    def validate(self, ctx: EngineContext, desired: R) -> list[str]:
         _ = ctx
         errors: list[str] = []
         if not desired.outputs:
@@ -148,20 +146,19 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
     def validate_plan(
         self,
         ctx: EngineContext,
-        desired: RecipeResource,
-        all_desired: Mapping[str, Resource],
-        state: State,
+        desired: R,
+        plan_ctx: PlanContext,
     ) -> list[str]:
-        _ = ctx, desired, all_desired, state
+        _ = ctx, desired, plan_ctx
         return []
 
     # -- CRUD -----------------------------------------------------------------
 
-    def create(self, ctx: EngineContext, desired: RecipeResource) -> dict[str, Any]:
+    def create(self, ctx: EngineContext, desired: R) -> dict[str, Any]:
         """Create a recipe in DSS."""
         project = self._get_project(ctx)
 
-        builder = project.new_recipe(desired.recipe_type, desired.name)
+        builder = project.new_recipe(desired.type, desired.name)
         for ref in desired.inputs:
             builder.with_input(ref)
         for ref in desired.outputs:
@@ -186,9 +183,7 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
             return None
         return self._read_attrs(ctx, recipe, prior.name)
 
-    def update(
-        self, ctx: EngineContext, desired: RecipeResource, prior: ResourceInstance
-    ) -> dict[str, Any]:
+    def update(self, ctx: EngineContext, desired: R, prior: ResourceInstance) -> dict[str, Any]:
         """Update a recipe in DSS."""
         _ = prior
         recipe = self._get_recipe(ctx, desired.name)
@@ -215,57 +210,31 @@ class RecipeHandler(ResourceHandler["RecipeResource"]):
         recipe.delete()
 
 
-class SyncRecipeHandler(RecipeHandler):
+class SyncRecipeHandler(RecipeHandler["SyncRecipeResource"]):
     """Handler for sync recipes. No type-specific overrides needed."""
 
 
-class CodeRecipeHandler(RecipeHandler):
-    """Base handler for recipes that carry a code payload."""
+class PythonRecipeHandler(RecipeHandler["PythonRecipeResource"]):
+    """Handler for Python recipes — adds code payload and code_env support."""
 
     def _read_extra_attrs(self, settings: Any, raw_def: dict[str, Any]) -> dict[str, Any]:
-        _ = raw_def
-        return {"code": settings.str_payload or ""}
-
-    def _apply_type_settings(
-        self,
-        settings: Any,
-        raw_def: dict[str, Any],
-        desired: RecipeResource,
-        *,
-        creating: bool,
-    ) -> bool:
-        _ = raw_def
-        if not isinstance(desired, (PythonRecipeResource, SQLQueryRecipeResource)):
-            return False
-        if creating and not desired.code:
-            return False
-        settings.set_payload(desired.code)
-        return True
-
-
-class PythonRecipeHandler(CodeRecipeHandler):
-    """Handler for Python recipes — adds code_env support."""
-
-    def _read_extra_attrs(self, settings: Any, raw_def: dict[str, Any]) -> dict[str, Any]:
-        attrs = super()._read_extra_attrs(settings, raw_def)
         env_sel = raw_def.get("params", {}).get("envSelection", {})
-        attrs["code_env"] = (
-            env_sel.get("envName") if env_sel.get("envMode") == "EXPLICIT_ENV" else None
-        )
-        return attrs
+        return {
+            "code": _read_code_payload(settings),
+            "code_env": (
+                env_sel.get("envName") if env_sel.get("envMode") == "EXPLICIT_ENV" else None
+            ),
+        }
 
     def _apply_type_settings(
         self,
         settings: Any,
         raw_def: dict[str, Any],
-        desired: RecipeResource,
+        desired: PythonRecipeResource,
         *,
         creating: bool,
     ) -> bool:
-        needs_save = super()._apply_type_settings(settings, raw_def, desired, creating=creating)
-
-        if not isinstance(desired, PythonRecipeResource):
-            return needs_save
+        needs_save = _apply_code_payload(settings, desired.code, creating=creating)
 
         if desired.code_env is not None:
             raw_def.setdefault("params", {})["envSelection"] = {
@@ -281,10 +250,25 @@ class PythonRecipeHandler(CodeRecipeHandler):
         return needs_save
 
 
-class SQLQueryRecipeHandler(CodeRecipeHandler):
-    """Handler for SQL query recipes — adds SQL input validation."""
+class SQLQueryRecipeHandler(RecipeHandler["SQLQueryRecipeResource"]):
+    """Handler for SQL query recipes — adds code payload and SQL input validation."""
 
-    def validate(self, ctx: EngineContext, desired: RecipeResource) -> list[str]:
+    def _read_extra_attrs(self, settings: Any, raw_def: dict[str, Any]) -> dict[str, Any]:
+        _ = raw_def
+        return {"code": _read_code_payload(settings)}
+
+    def _apply_type_settings(
+        self,
+        settings: Any,
+        raw_def: dict[str, Any],
+        desired: SQLQueryRecipeResource,
+        *,
+        creating: bool,
+    ) -> bool:
+        _ = raw_def
+        return _apply_code_payload(settings, desired.code, creating=creating)
+
+    def validate(self, ctx: EngineContext, desired: SQLQueryRecipeResource) -> list[str]:
         errors = super().validate(ctx, desired)
         if not desired.inputs:
             errors.append(f"SQL query recipe '{desired.name}' requires at least one input dataset")
@@ -293,14 +277,15 @@ class SQLQueryRecipeHandler(CodeRecipeHandler):
     def validate_plan(
         self,
         ctx: EngineContext,
-        desired: RecipeResource,
-        all_desired: Mapping[str, Resource],
-        state: State,
+        desired: SQLQueryRecipeResource,
+        plan_ctx: PlanContext,
     ) -> list[str]:
         _ = ctx
         errors: list[str] = []
 
-        if not any(_is_sql_dataset(ref, all_desired, state) for ref in desired.inputs):
+        if not any(
+            plan_ctx.get_attr(ref, "type") in DatasetResource.sql_types for ref in desired.inputs
+        ):
             errors.append(
                 f"SQL query recipe '{desired.name}' requires at least one input "
                 f"with a SQL connection (inputs: {desired.inputs})"

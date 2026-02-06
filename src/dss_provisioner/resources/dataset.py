@@ -33,8 +33,9 @@ class DatasetResource(Resource):
     """Base resource for DSS datasets."""
 
     resource_type: ClassVar[str] = "dss_dataset"
+    sql_types: ClassVar[set[str]] = {"PostgreSQL", "Snowflake", "Oracle", "MySQL"}
 
-    dataset_type: str
+    type: str
     connection: str | None = None
     managed: bool = False
     format_type: str | None = None
@@ -54,8 +55,9 @@ class SnowflakeDatasetResource(DatasetResource):
     """Snowflake-specific dataset resource."""
 
     resource_type: ClassVar[str] = "dss_snowflake_dataset"
+    yaml_alias: ClassVar[str] = "snowflake"
 
-    dataset_type: Literal["Snowflake"] = "Snowflake"
+    type: Literal["Snowflake"] = "Snowflake"
     connection: str  # type: ignore[assignment]
     schema_name: str
     table: str
@@ -76,8 +78,9 @@ class OracleDatasetResource(DatasetResource):
     """Oracle-specific dataset resource."""
 
     resource_type: ClassVar[str] = "dss_oracle_dataset"
+    yaml_alias: ClassVar[str] = "oracle"
 
-    dataset_type: Literal["Oracle"] = "Oracle"
+    type: Literal["Oracle"] = "Oracle"
     connection: str  # type: ignore[assignment]
     schema_name: str
     table: str
@@ -93,8 +96,9 @@ class FilesystemDatasetResource(DatasetResource):
     """Filesystem-specific dataset resource."""
 
     resource_type: ClassVar[str] = "dss_filesystem_dataset"
+    yaml_alias: ClassVar[str] = "filesystem"
 
-    dataset_type: Literal["Filesystem"] = "Filesystem"
+    type: Literal["Filesystem"] = "Filesystem"
     connection: str  # type: ignore[assignment]
     path: str
 
@@ -108,6 +112,7 @@ class UploadDatasetResource(DatasetResource):
     """Upload-specific dataset resource."""
 
     resource_type: ClassVar[str] = "dss_upload_dataset"
+    yaml_alias: ClassVar[str] = "upload"
 
-    dataset_type: Literal["UploadedFiles"] = "UploadedFiles"
+    type: Literal["UploadedFiles"] = "UploadedFiles"
     managed: bool = True

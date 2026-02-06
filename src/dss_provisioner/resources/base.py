@@ -23,6 +23,10 @@ class Resource(BaseModel):
     # Lifecycle
     depends_on: list[str] = []
 
+    def reference_names(self) -> list[str]:
+        """Names of other resources this one references (for auto-dependency inference)."""
+        return []
+
     @computed_field
     @property
     def address(self) -> str:

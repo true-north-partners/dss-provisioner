@@ -1,0 +1,100 @@
+"""Configuration models for YAML-based provisioning."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Annotated, Any
+
+from pydantic import BaseModel, BeforeValidator, Discriminator, computed_field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from dss_provisioner.resources.base import Resource  # noqa: TC001 — Pydantic needs this at runtime
+from dss_provisioner.resources.dataset import (
+    DatasetResource,
+    FilesystemDatasetResource,
+    OracleDatasetResource,
+    SnowflakeDatasetResource,
+    UploadDatasetResource,
+)
+from dss_provisioner.resources.recipe import (
+    PythonRecipeResource,
+    SQLQueryRecipeResource,
+    SyncRecipeResource,
+)
+
+
+class ProviderConfig(BaseSettings):
+    """DSS provider connection settings.
+
+    Fields can be set via YAML (constructor kwargs) or environment variables
+    with the ``DSS_`` prefix.  Constructor kwargs take precedence.
+
+    ``api_key`` is deliberately omitted from YAML — it resolves exclusively
+    from the ``DSS_API_KEY`` environment variable.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="DSS_")
+
+    host: str | None = None
+    api_key: str | None = None
+    project: str
+
+
+def _none_to_list(v: Any) -> Any:
+    return v if v is not None else []
+
+
+def _type_aliases(*models: type[BaseModel]) -> dict[str, str]:
+    """Collect ``yaml_alias`` → ``type`` default from model classes."""
+    aliases: dict[str, str] = {}
+    for m in models:
+        yaml_alias = getattr(m, "yaml_alias", None)
+        if yaml_alias is not None:
+            aliases[yaml_alias] = m.model_fields["type"].default
+    return aliases
+
+
+def _type_normalizer(base: type[BaseModel]) -> Any:
+    """Build a BeforeValidator callable that maps ``yaml_alias`` → DSS type value.
+
+    Discovers aliases from direct subclasses of *base* that declare ``yaml_alias``.
+    """
+    aliases = _type_aliases(*base.__subclasses__())
+
+    def _normalize(v: Any) -> Any:
+        if isinstance(v, dict) and "type" in v:
+            v["type"] = aliases.get(v["type"], v["type"])
+        return v
+
+    return _normalize
+
+
+_DatasetEntry = Annotated[
+    SnowflakeDatasetResource
+    | OracleDatasetResource
+    | FilesystemDatasetResource
+    | UploadDatasetResource,
+    BeforeValidator(_type_normalizer(DatasetResource)),
+    Discriminator("type"),
+]
+
+_RecipeEntry = Annotated[
+    PythonRecipeResource | SQLQueryRecipeResource | SyncRecipeResource,
+    Discriminator("type"),
+]
+
+
+class Config(BaseModel):
+    """Provisioning configuration — validates YAML structure directly."""
+
+    provider: ProviderConfig
+    state_path: Path = Path(".dss-state.json")
+    datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
+    recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
+    config_dir: Path = Path()
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def resources(self) -> list[Resource]:
+        """All resources (datasets + recipes) in declaration order."""
+        return [*self.datasets, *self.recipes]

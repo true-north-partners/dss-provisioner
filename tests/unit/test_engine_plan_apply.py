@@ -11,7 +11,12 @@ from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
 from dss_provisioner.engine.engine import _values_differ
-from dss_provisioner.engine.errors import StalePlanError, UnknownResourceTypeError, ValidationError
+from dss_provisioner.engine.errors import (
+    ApplyError,
+    StalePlanError,
+    UnknownResourceTypeError,
+    ValidationError,
+)
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action, Plan
@@ -439,3 +444,96 @@ class TestEngineValidation:
         # Should not raise — validation passes
         plan = engine.plan([recipe, sf_ds], refresh=False)
         assert any(c.action == Action.CREATE for c in plan.changes)
+
+
+# ---------------------------------------------------------------------------
+# Partial failure + recovery tests
+# ---------------------------------------------------------------------------
+
+
+class FailOnceHandler(InMemoryHandler):
+    """Handler that raises on the first create of a specific resource, then works."""
+
+    def __init__(self, fail_address: str) -> None:
+        super().__init__()
+        self.fail_address = fail_address
+
+    def create(self, ctx: EngineContext, desired: DummyResource) -> dict[str, Any]:
+        if desired.address == self.fail_address:
+            self.fail_address = ""  # clear — next attempt succeeds
+            msg = "Simulated API error"
+            raise RuntimeError(msg)
+        return super().create(ctx, desired)
+
+
+class TestPartialFailureRecovery:
+    """Tests that partial apply saves state and re-run recovers."""
+
+    def test_apply_error_carries_partial_result(self, tmp_path: Path) -> None:
+        """ApplyError wraps what was applied before the failure."""
+        provider = DSSProvider.from_client(MagicMock())
+        registry = ResourceTypeRegistry()
+        handler = FailOnceHandler(fail_address="dummy.b")
+        registry.register(DummyResource, handler)
+        engine = DSSEngine(
+            provider=provider,
+            project_key="PRJ",
+            state_path=tmp_path / "state.json",
+            registry=registry,
+        )
+
+        a = DummyResource(name="a", value=1)
+        b = DummyResource(name="b", value=2, depends_on=["dummy.a"])
+
+        plan = engine.plan([a, b], refresh=False)
+        assert plan.summary()["create"] == 2
+
+        with pytest.raises(ApplyError, match=r"dummy\.b") as exc_info:
+            engine.apply(plan)
+
+        # A was applied before B failed
+        assert exc_info.value.result.summary() == {
+            "create": 1,
+            "update": 0,
+            "delete": 0,
+            "no-op": 0,
+        }
+        assert exc_info.value.address == "dummy.b"
+
+    def test_rerun_after_partial_failure_recovers(self, tmp_path: Path) -> None:
+        """Re-running plan+apply against the same state file picks up where it left off."""
+        provider = DSSProvider.from_client(MagicMock())
+        registry = ResourceTypeRegistry()
+        handler = FailOnceHandler(fail_address="dummy.b")
+        registry.register(DummyResource, handler)
+        engine = DSSEngine(
+            provider=provider,
+            project_key="PRJ",
+            state_path=tmp_path / "state.json",
+            registry=registry,
+        )
+
+        a = DummyResource(name="a", value=1)
+        b = DummyResource(name="b", value=2, depends_on=["dummy.a"])
+
+        # First attempt — A succeeds, B fails
+        plan1 = engine.plan([a, b], refresh=False)
+        with pytest.raises(ApplyError):
+            engine.apply(plan1)
+
+        # State has A but not B
+        state = State.load(engine.state_path)
+        assert "dummy.a" in state.resources
+        assert "dummy.b" not in state.resources
+
+        # Second attempt — handler is "fixed" (fail_address cleared)
+        plan2 = engine.plan([a, b], refresh=False)
+        assert plan2.summary() == {"create": 1, "update": 0, "delete": 0, "no-op": 1}
+
+        result = engine.apply(plan2)
+        assert result.summary() == {"create": 1, "update": 0, "delete": 0, "no-op": 0}
+
+        # Both resources now in state
+        state = State.load(engine.state_path)
+        assert "dummy.a" in state.resources
+        assert "dummy.b" in state.resources

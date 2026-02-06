@@ -5,12 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
+from dss_provisioner.core.state import ResourceInstance
 from dss_provisioner.resources.base import Resource
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from dss_provisioner.core import DSSProvider, ResourceInstance
+    from dss_provisioner.core import DSSProvider
     from dss_provisioner.core.state import State
 
 R = TypeVar("R", bound=Resource)
@@ -22,6 +23,31 @@ class EngineContext:
 
     provider: DSSProvider
     project_key: str
+
+
+class PlanContext:
+    """Merged view of desired and existing resources for plan-level validation.
+
+    Provides name-based attribute lookup across both planned (desired) and
+    existing (state) resources, with desired taking precedence.
+    """
+
+    def __init__(self, all_desired: Mapping[str, Resource], state: State) -> None:
+        self._by_name: dict[str, Resource | ResourceInstance] = {
+            i.name: i for i in state.resources.values()
+        }
+        # Desired takes precedence over state.
+        for r in all_desired.values():
+            self._by_name[r.name] = r
+
+    def get_attr(self, name: str, attr: str) -> Any:
+        """Look up a resource attribute by name."""
+        r = self._by_name.get(name)
+        if r is None:
+            return None
+        if isinstance(r, ResourceInstance):
+            return r.attributes.get(attr)
+        return getattr(r, attr, None)
 
 
 class ResourceHandler(Generic[R]):
@@ -43,14 +69,13 @@ class ResourceHandler(Generic[R]):
         self,
         ctx: EngineContext,
         desired: R,
-        all_desired: Mapping[str, Resource],
-        state: State,
+        plan_ctx: PlanContext,
     ) -> list[str]:
-        """Cross-resource validation with access to full resource set + state.
+        """Cross-resource validation with access to all resources.
 
         Return list of error messages (empty = valid).
         """
-        _ = ctx, desired, all_desired, state
+        _ = ctx, desired, plan_ctx
         return []
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any] | None:

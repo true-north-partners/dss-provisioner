@@ -98,7 +98,7 @@ class TestCreateExternalDataset:
         mock_project: MagicMock,
         mock_dataset: MagicMock,  # noqa: ARG002
     ) -> None:
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        desired = DatasetResource(name="my_ds", type="Filesystem")
         handler.create(ctx, desired)
         mock_project.create_dataset.assert_called_once_with("my_ds", "Filesystem", params={})
 
@@ -109,7 +109,7 @@ class TestCreateExternalDataset:
         mock_project: MagicMock,
         mock_dataset: MagicMock,  # noqa: ARG002
     ) -> None:
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem", connection="local")
+        desired = DatasetResource(name="my_ds", type="Filesystem", connection="local")
         handler.create(ctx, desired)
         mock_project.create_dataset.assert_called_once_with(
             "my_ds", "Filesystem", params={"connection": "local"}
@@ -128,9 +128,7 @@ class TestCreateManagedDataset:
         builder.create.return_value = mock_dataset
         mock_project.new_managed_dataset.return_value = builder
 
-        desired = DatasetResource(
-            name="my_ds", dataset_type="Filesystem", managed=True, connection="conn"
-        )
+        desired = DatasetResource(name="my_ds", type="Filesystem", managed=True, connection="conn")
         handler.create(ctx, desired)
 
         mock_project.new_managed_dataset.assert_called_once_with("my_ds")
@@ -262,7 +260,7 @@ class TestCreateSetsSchemaWhenColumnsProvided:
     ) -> None:
         desired = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             columns=[Column(name="id", type="int", description="Primary key")],
         )
         handler.create(ctx, desired)
@@ -283,7 +281,7 @@ class TestCreateSetsSchemaWhenColumnsProvided:
         mock_project: MagicMock,  # noqa: ARG002
         mock_dataset: MagicMock,
     ) -> None:
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        desired = DatasetResource(name="my_ds", type="Filesystem")
         handler.create(ctx, desired)
         mock_dataset.set_schema.assert_not_called()
 
@@ -301,7 +299,7 @@ class TestCreateSetsFormatWhenSpecified:
 
         desired = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             format_type="csv",
             format_params={"separator": ",", "style": "unix"},
         )
@@ -329,7 +327,7 @@ class TestCreateSetsFormatWhenSpecified:
 
         desired = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             format_type="csv",
             format_params={"separator": ";"},
         )
@@ -353,7 +351,7 @@ class TestCreateSetsFormatWhenSpecified:
         }
         mock_dataset.get_settings.return_value.get_raw.return_value = raw
 
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem", format_type="parquet")
+        desired = DatasetResource(name="my_ds", type="Filesystem", format_type="parquet")
         handler.create(ctx, desired)
 
         assert raw["formatType"] == "parquet"
@@ -368,7 +366,7 @@ class TestCreateSetsZoneWhenSpecified:
         mock_project: MagicMock,  # noqa: ARG002
         mock_dataset: MagicMock,
     ) -> None:
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem", zone="raw")
+        desired = DatasetResource(name="my_ds", type="Filesystem", zone="raw")
         handler.create(ctx, desired)
 
         mock_dataset.move_to_zone.assert_called_once_with("raw")
@@ -380,7 +378,7 @@ class TestCreateSetsZoneWhenSpecified:
         mock_project: MagicMock,  # noqa: ARG002
         mock_dataset: MagicMock,
     ) -> None:
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        desired = DatasetResource(name="my_ds", type="Filesystem")
         handler.create(ctx, desired)
         mock_dataset.move_to_zone.assert_not_called()
 
@@ -410,7 +408,7 @@ class TestRead:
 
         assert result is not None
         assert result["name"] == "my_ds"
-        assert result["dataset_type"] == "Filesystem"
+        assert result["type"] == "Filesystem"
         assert result["connection"] == "local"
         assert result["description"] == "A dataset"
         assert result["tags"] == ["tag1"]
@@ -499,7 +497,7 @@ class TestUpdate:
         raw = _make_raw("Filesystem", params={"connection": "local"})
         mock_dataset.get_settings.return_value.get_raw.return_value = raw
 
-        desired = DatasetResource(name="my_ds", dataset_type="Filesystem", connection="new_conn")
+        desired = DatasetResource(name="my_ds", type="Filesystem", connection="new_conn")
         prior = ResourceInstance(
             address="dss_dataset.my_ds",
             resource_type="dss_dataset",
@@ -598,7 +596,7 @@ class TestEngineIntegrationRoundtrip:
         engine, _project, dataset = _setup_engine(tmp_path, raw)
 
         # --- CREATE ---
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem", connection="local")
+        ds = DatasetResource(name="my_ds", type="Filesystem", connection="local")
         plan = engine.plan([ds])
         assert plan.changes[0].action == Action.CREATE
         engine.apply(plan)
@@ -619,7 +617,7 @@ class TestEngineIntegrationRoundtrip:
         # --- UPDATE (change description) ---
         # Mock still returns old metadata during refresh; desired has new value.
         ds_updated = DatasetResource(
-            name="my_ds", dataset_type="Filesystem", connection="local", description="updated"
+            name="my_ds", type="Filesystem", connection="local", description="updated"
         )
         plan3 = engine.plan([ds_updated])
         assert plan3.changes[0].action == Action.UPDATE
@@ -742,7 +740,7 @@ class TestEngineIntegrationRoundtrip:
         # User declares minimal format_params
         ds = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             connection="local",
             format_type="csv",
             format_params={"separator": ",", "style": "unix"},
@@ -786,7 +784,7 @@ class TestEngineIntegrationRoundtrip:
         """Verify that changes to declared keys are still detected as drift."""
         ds = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             connection="local",
             format_type="csv",
             format_params={"separator": ","},

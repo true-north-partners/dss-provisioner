@@ -37,7 +37,7 @@ def resolve_code_files(resources: Iterable[Resource], base_dir: Path) -> list[Re
     """
     result: list[Resource] = []
     for resource in resources:
-        if not isinstance(resource, (PythonRecipeResource, SQLQueryRecipeResource)):
+        if not isinstance(resource, PythonRecipeResource | SQLQueryRecipeResource):
             result.append(resource)
             continue
 

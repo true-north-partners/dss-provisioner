@@ -54,11 +54,11 @@ class TestColumn:
 
 class TestDatasetResource:
     def test_address(self) -> None:
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        ds = DatasetResource(name="my_ds", type="Filesystem")
         assert ds.address == "dss_dataset.my_ds"
 
     def test_defaults(self) -> None:
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        ds = DatasetResource(name="my_ds", type="Filesystem")
         assert ds.connection is None
         assert ds.managed is False
         assert ds.format_type is None
@@ -71,19 +71,19 @@ class TestDatasetResource:
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
-            DatasetResource(name="my_ds", dataset_type="Filesystem", unknown_field="x")  # type: ignore[call-arg]
+            DatasetResource(name="my_ds", type="Filesystem", unknown_field="x")  # type: ignore[call-arg]
 
     def test_model_dump_shape(self) -> None:
         ds = DatasetResource(
             name="my_ds",
-            dataset_type="Filesystem",
+            type="Filesystem",
             connection="local",
             managed=True,
             columns=[Column(name="id", type="int")],
         )
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
         assert "name" in dump
-        assert "dataset_type" in dump
+        assert "type" in dump
         assert "connection" in dump
         assert "managed" in dump
         assert "columns" in dump
@@ -93,18 +93,18 @@ class TestDatasetResource:
         assert dump["columns"] == [{"name": "id", "type": "int", "description": ""}]
 
     def test_model_dump_excludes_none(self) -> None:
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        ds = DatasetResource(name="my_ds", type="Filesystem")
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
         assert "connection" not in dump
         assert "format_type" not in dump
         assert "zone" not in dump
 
     def test_to_dss_params_with_connection(self) -> None:
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem", connection="local")
+        ds = DatasetResource(name="my_ds", type="Filesystem", connection="local")
         assert ds.to_dss_params() == {"connection": "local"}
 
     def test_to_dss_params_without_connection(self) -> None:
-        ds = DatasetResource(name="my_ds", dataset_type="Filesystem")
+        ds = DatasetResource(name="my_ds", type="Filesystem")
         assert ds.to_dss_params() == {}
 
 
@@ -119,7 +119,7 @@ class TestSnowflakeDatasetResource:
         ds = SnowflakeDatasetResource(
             name="my_ds", connection="snowflake_conn", schema_name="PUBLIC", table="users"
         )
-        assert ds.dataset_type == "Snowflake"
+        assert ds.type == "Snowflake"
         assert ds.write_mode == "OVERWRITE"
         assert ds.catalog is None
 
@@ -127,14 +127,14 @@ class TestSnowflakeDatasetResource:
         with pytest.raises(ValidationError):
             SnowflakeDatasetResource(name="my_ds")  # type: ignore[call-arg]
 
-    def test_dataset_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
             SnowflakeDatasetResource(
                 name="my_ds",
                 connection="conn",
                 schema_name="PUBLIC",
                 table="t",
-                dataset_type="Oracle",  # type: ignore[arg-type]
+                type="Oracle",  # type: ignore[arg-type]
             )
 
     def test_extra_forbid(self) -> None:
@@ -156,7 +156,7 @@ class TestSnowflakeDatasetResource:
             write_mode="APPEND",
         )
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["dataset_type"] == "Snowflake"
+        assert dump["type"] == "Snowflake"
         assert dump["connection"] == "snowflake_conn"
         assert dump["schema_name"] == "PUBLIC"
         assert dump["table"] == "users"
@@ -208,20 +208,20 @@ class TestOracleDatasetResource:
         ds = OracleDatasetResource(
             name="my_ds", connection="oracle_conn", schema_name="HR", table="employees"
         )
-        assert ds.dataset_type == "Oracle"
+        assert ds.type == "Oracle"
 
     def test_required_fields(self) -> None:
         with pytest.raises(ValidationError):
             OracleDatasetResource(name="my_ds")  # type: ignore[call-arg]
 
-    def test_dataset_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
             OracleDatasetResource(
                 name="my_ds",
                 connection="conn",
                 schema_name="HR",
                 table="t",
-                dataset_type="Snowflake",  # type: ignore[arg-type]
+                type="Snowflake",  # type: ignore[arg-type]
             )
 
     def test_extra_forbid(self) -> None:
@@ -242,7 +242,7 @@ class TestOracleDatasetResource:
             table="employees",
         )
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["dataset_type"] == "Oracle"
+        assert dump["type"] == "Oracle"
         assert dump["connection"] == "oracle_conn"
         assert dump["schema_name"] == "HR"
         assert dump["table"] == "employees"
@@ -269,19 +269,19 @@ class TestFilesystemDatasetResource:
         ds = FilesystemDatasetResource(
             name="my_ds", connection="filesystem_managed", path="/data/input"
         )
-        assert ds.dataset_type == "Filesystem"
+        assert ds.type == "Filesystem"
 
     def test_required_fields(self) -> None:
         with pytest.raises(ValidationError):
             FilesystemDatasetResource(name="my_ds")  # type: ignore[call-arg]
 
-    def test_dataset_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
             FilesystemDatasetResource(
                 name="my_ds",
                 connection="conn",
                 path="/data",
-                dataset_type="Oracle",  # type: ignore[arg-type]
+                type="Oracle",  # type: ignore[arg-type]
             )
 
     def test_to_dss_params(self) -> None:
@@ -298,7 +298,7 @@ class TestFilesystemDatasetResource:
             name="my_ds", connection="filesystem_managed", path="/data/input"
         )
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["dataset_type"] == "Filesystem"
+        assert dump["type"] == "Filesystem"
         assert dump["connection"] == "filesystem_managed"
         assert dump["path"] == "/data/input"
 
@@ -310,15 +310,15 @@ class TestUploadDatasetResource:
 
     def test_defaults(self) -> None:
         ds = UploadDatasetResource(name="my_ds")
-        assert ds.dataset_type == "UploadedFiles"
+        assert ds.type == "UploadedFiles"
         assert ds.managed is True
 
-    def test_dataset_type_locked(self) -> None:
+    def test_type_locked(self) -> None:
         with pytest.raises(ValidationError):
-            UploadDatasetResource(name="my_ds", dataset_type="Oracle")  # type: ignore[arg-type]
+            UploadDatasetResource(name="my_ds", type="Oracle")  # type: ignore[arg-type]
 
     def test_model_dump_shape(self) -> None:
         ds = UploadDatasetResource(name="my_ds")
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
-        assert dump["dataset_type"] == "UploadedFiles"
+        assert dump["type"] == "UploadedFiles"
         assert dump["managed"] is True
