@@ -89,7 +89,7 @@ For development:
 ```bash
 git clone https://github.com/true-north-partners/dss-provisioner.git
 cd dss-provisioner
-uv sync
+uv sync --all-extras
 ```
 
 ## Quick start
