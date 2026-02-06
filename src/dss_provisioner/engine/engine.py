@@ -15,6 +15,7 @@ from dss_provisioner.engine.errors import (
     DuplicateAddressError,
     StalePlanError,
     StateProjectMismatchError,
+    ValidationError,
 )
 from dss_provisioner.engine.graph import DependencyGraph
 from dss_provisioner.engine.handlers import EngineContext
@@ -167,6 +168,21 @@ class DSSEngine:
                 # Ensure resource type is known up front
                 self._registry.get(r.resource_type)
                 desired_by_addr[r.address] = r
+
+            # --- Validation pass ---
+            if not destroy:
+                ctx = self._ctx()
+                errors: list[str] = []
+                # Level 1: single-resource validation (cheap, no cross-refs)
+                for r in desired_by_addr.values():
+                    reg = self._registry.get(r.resource_type)
+                    errors.extend(reg.handler.validate(ctx, r))
+                # Level 2: cross-resource validation (may inspect siblings + state)
+                for r in desired_by_addr.values():
+                    reg = self._registry.get(r.resource_type)
+                    errors.extend(reg.handler.validate_plan(ctx, r, desired_by_addr, state))
+                if errors:
+                    raise ValidationError(errors)
 
             desired_addrs = set(desired_by_addr.keys())
             state_addrs = set(state.resources.keys())

@@ -10,6 +10,7 @@ from dss_provisioner.engine.errors import (
     StateLockError,
     StateProjectMismatchError,
     UnknownResourceTypeError,
+    ValidationError,
 )
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistration, ResourceTypeRegistry
@@ -34,4 +35,5 @@ __all__ = [
     "StateLockError",
     "StateProjectMismatchError",
     "UnknownResourceTypeError",
+    "ValidationError",
 ]
