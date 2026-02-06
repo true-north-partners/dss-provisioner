@@ -37,9 +37,11 @@ def load(path: Path | str) -> Config:
 
 def _engine_from_config(config: Config) -> DSSEngine:
     """Build a ``DSSEngine`` from a ``Config`` instance."""
-    auth = (
-        ApiKeyAuth(api_key=SecretStr(config.provider.api_key)) if config.provider.api_key else None
-    )
+    if not config.provider.host:
+        raise ConfigError("provider.host is required (set in YAML or DSS_HOST env var)")
+    if not config.provider.api_key:
+        raise ConfigError("provider.api_key is required (set DSS_API_KEY env var)")
+    auth = ApiKeyAuth(api_key=SecretStr(config.provider.api_key))
     provider = DSSProvider(host=config.provider.host, auth=auth)
     return DSSEngine(
         provider=provider,

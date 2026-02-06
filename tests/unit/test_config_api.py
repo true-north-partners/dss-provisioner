@@ -5,12 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from dss_provisioner.config import _engine_from_config, load, plan
+from dss_provisioner.config.loader import ConfigError
 from dss_provisioner.config.schema import Config, ProviderConfig
 
 _YAML = """\
 provider:
   host: https://dss.example.com
+  api_key: test-key
   project: TEST
 
 datasets:
@@ -35,12 +39,19 @@ class TestEngineFromConfig:
         engine = _engine_from_config(config)
         assert engine.state_path == Path("custom.json")
 
-    def test_no_api_key_sets_auth_none(self) -> None:
+    def test_missing_host_raises(self) -> None:
+        config = Config(
+            provider=ProviderConfig(project="P", api_key="k"),
+        )
+        with pytest.raises(ConfigError, match="host"):
+            _engine_from_config(config)
+
+    def test_missing_api_key_raises(self) -> None:
         config = Config(
             provider=ProviderConfig(project="P", host="https://h"),
         )
-        engine = _engine_from_config(config)
-        assert engine._provider.auth is None
+        with pytest.raises(ConfigError, match="api_key"):
+            _engine_from_config(config)
 
 
 class TestProviderConfigEnvResolution:

@@ -29,8 +29,8 @@ class ProviderConfig(BaseSettings):
     Fields can be set via YAML (constructor kwargs) or environment variables
     with the ``DSS_`` prefix.  Constructor kwargs take precedence.
 
-    ``api_key`` is deliberately omitted from YAML — it resolves exclusively
-    from the ``DSS_API_KEY`` environment variable.
+    ``api_key`` is typically provided via the ``DSS_API_KEY`` environment
+    variable rather than YAML to avoid committing secrets to version control.
     """
 
     model_config = SettingsConfigDict(env_prefix="DSS_")
