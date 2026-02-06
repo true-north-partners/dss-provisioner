@@ -16,7 +16,8 @@ Instead of clicking through the DSS UI or writing imperative API scripts, you de
 # dss-provisioner.yaml
 
 provider:
-  host: https://dss.company.com
+  host: https://dss.company.com  # or DSS_HOST env var
+  # api_key: set DSS_API_KEY env var (recommended over YAML)
   project: ANALYTICS
 
 datasets:
@@ -43,7 +44,7 @@ recipes:
 
 Then preview and apply changes:
 
-```
+```bash
 $ dss-provisioner plan
 
   # dss_snowflake_dataset.customers_raw will be created
@@ -80,8 +81,10 @@ Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 
 ## Installation
 
+Not yet published to PyPI. For now, install from source:
+
 ```bash
-pip install dss-provisioner  # not yet published to PyPI
+pip install git+https://github.com/true-north-partners/dss-provisioner.git
 ```
 
 For development:
@@ -133,7 +136,7 @@ dss-provisioner drift
 # Refresh state from live DSS
 dss-provisioner refresh
 
-# Validate config without connecting
+# Validate configuration
 dss-provisioner validate
 
 # Tear down all managed resources
