@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from dss_provisioner.engine.handlers import ResourceHandler
+from dss_provisioner.engine.variables import get_variables, resolve_variables
 
 if TYPE_CHECKING:
     from dataikuapi.dss.dataset import DSSDataset, DSSDatasetSettings
@@ -33,23 +34,6 @@ _EXTRA_PARAM_FIELDS: dict[str, list[tuple[str, str, Any]]] = {
 }
 
 
-def _resolve_variables(value: Any, variables: dict[str, str]) -> Any:
-    """Replace DSS ``${…}`` variables in string values, recursively.
-
-    *variables* maps variable names to their values, e.g.
-    ``{"projectKey": "MY_PRJ"}``.
-    """
-    if isinstance(value, str):
-        for var, replacement in variables.items():
-            value = value.replace(f"${{{var}}}", replacement)
-        return value
-    if isinstance(value, dict):
-        return {k: _resolve_variables(v, variables) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_resolve_variables(v, variables) for v in value]
-    return value
-
-
 class DatasetHandler(ResourceHandler["DatasetResource"]):
     """CRUD handler for DSS datasets.
 
@@ -71,21 +55,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         if ctx.project_key in self._variables_cache:
             return self._variables_cache[ctx.project_key]
 
-        variables: dict[str, str] = {"projectKey": ctx.project_key}
-        try:
-            for k, v in ctx.provider.client.get_global_variables().items():
-                if isinstance(v, str):
-                    variables[k] = v
-            project_vars = self._get_project(ctx).get_variables()
-            for scope in ("standard", "local"):
-                for k, v in project_vars.get(scope, {}).items():
-                    if isinstance(v, str):
-                        variables[k] = v
-        except Exception:
-            # Variable APIs may be unavailable (e.g. permission issues); fall
-            # back to built-in projectKey only.
-            pass
-
+        variables = get_variables(ctx)
         self._variables_cache[ctx.project_key] = variables
         return variables
 
@@ -177,7 +147,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         for model_field, dss_key, default in _EXTRA_PARAM_FIELDS.get(resource_type, []):
             attrs[model_field] = params.get(dss_key, default)
 
-        return _resolve_variables(attrs, self._get_variables(ctx))
+        return resolve_variables(attrs, self._get_variables(ctx))
 
     def create(self, ctx: EngineContext, desired: DatasetResource) -> dict[str, Any]:
         """Create a dataset in DSS."""

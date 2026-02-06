@@ -183,7 +183,7 @@ def apply_cmd(
         color=color,
         auto_approve=auto_approve,
         confirm_msg="Do you want to apply these changes?",
-        empty_msg="No changes. Infrastructure is up-to-date.",
+        empty_msg="No changes. Resources are up-to-date.",
     )
 
 

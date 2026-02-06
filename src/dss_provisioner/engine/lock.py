@@ -51,6 +51,7 @@ class StateLock:
         finally:
             self._file.close()
             self._file = None
+            self._lock_path.unlink(missing_ok=True)
 
     def _acquire(self) -> None:
         if self._file is None:

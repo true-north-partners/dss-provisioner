@@ -111,7 +111,7 @@ def format_plan(plan: Plan, *, color: bool = True) -> str:
     """Render the full plan output with per-change diff blocks."""
     blocks = [format_change(c, color=color) for c in plan.changes if c.action != Action.NOOP]
     if not blocks:
-        return "No changes. Infrastructure is up-to-date."
+        return "No changes. Resources are up-to-date."
     return "\n\n".join(blocks)
 
 

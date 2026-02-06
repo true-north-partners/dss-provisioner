@@ -29,6 +29,7 @@ from dss_provisioner.engine.operations import (
     UpdateOperation,
 )
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
+from dss_provisioner.engine.variables import get_variables, resolve_variables
 
 ProgressCallback = Callable[[ResourceChange, Literal["start", "done"]], None]
 
@@ -177,11 +178,13 @@ class DSSEngine:
         resource: Resource,
         state: State,
         deps: list[str],
+        variables: dict[str, str],
     ) -> ResourceChange:
         """Classify a single resource as CREATE, UPDATE, or NOOP."""
         desired_dump = resource.model_dump(exclude_none=True, exclude={"address"})
         desired_dump["depends_on"] = deps
         planned = {k: v for k, v in desired_dump.items() if k != "depends_on"}
+        resolved_planned = resolve_variables(planned, variables)
 
         prior_inst = state.resources.get(addr)
         if prior_inst is None:
@@ -190,13 +193,13 @@ class DSSEngine:
                 resource_type=resource.resource_type,
                 action=Action.CREATE,
                 desired=desired_dump,
-                planned=planned,
+                planned=resolved_planned,
             )
 
         prior = dict(prior_inst.attributes)
         diff = {
             k: {"from": prior.get(k), "to": v}
-            for k, v in planned.items()
+            for k, v in resolved_planned.items()
             if _values_differ(v, prior.get(k))
         }
 
@@ -206,7 +209,7 @@ class DSSEngine:
             action=Action.UPDATE if diff else Action.NOOP,
             desired=desired_dump,
             prior=prior,
-            planned=planned,
+            planned=resolved_planned,
             diff=diff or None,
         )
 
@@ -269,10 +272,13 @@ class DSSEngine:
             if destroy:
                 changes = self._plan_deletes(state, state_addrs)
             else:
+                variables = get_variables(ctx)
                 topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
                 order = DependencyGraph(desired_addrs, topo_deps).topological_order()
                 changes = [
-                    self._classify_change(addr, desired_by_addr[addr], state, dep_map[addr])
+                    self._classify_change(
+                        addr, desired_by_addr[addr], state, dep_map[addr], variables
+                    )
                     for addr in order
                 ]
                 changes.extend(self._plan_deletes(state, state_addrs - desired_addrs))
