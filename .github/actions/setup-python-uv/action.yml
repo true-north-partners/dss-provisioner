@@ -19,6 +19,11 @@ runs:
 
     - uses: extractions/setup-just@v3
 
+    - name: Pin UV_PYTHON for all subsequent uv commands
+      if: inputs.python-version
+      shell: bash
+      run: echo "UV_PYTHON=${{ inputs.python-version }}" >> "$GITHUB_ENV"
+
     - name: Install dependencies
       shell: bash
-      run: uv sync --extra dev ${{ inputs.python-version && format('--python {0}', inputs.python-version) || '' }}
+      run: uv sync --all-extras
