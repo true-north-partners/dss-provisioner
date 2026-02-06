@@ -11,7 +11,7 @@ from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
 from dss_provisioner.engine.engine import _values_differ
-from dss_provisioner.engine.errors import StalePlanError, UnknownResourceTypeError
+from dss_provisioner.engine.errors import StalePlanError, UnknownResourceTypeError, ValidationError
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action, Plan
@@ -353,3 +353,89 @@ class TestDictFieldDiffInPlan:
 
         plan = engine.plan([r], refresh=False)
         assert plan.changes[0].action == Action.NOOP
+
+
+# ---------------------------------------------------------------------------
+# Engine-level validation tests
+# ---------------------------------------------------------------------------
+
+
+class TestEngineValidation:
+    """Tests that engine.plan() invokes handler validation and raises ValidationError."""
+
+    def test_plan_raises_validation_error_no_output(self, tmp_path: Path) -> None:
+        """plan() fails for recipe without output — Level 1 validation."""
+        from dss_provisioner.engine.recipe_handler import SyncRecipeHandler
+        from dss_provisioner.resources.recipe import SyncRecipeResource
+
+        registry = ResourceTypeRegistry()
+        registry.register(DummyResource, InMemoryHandler())
+        registry.register(SyncRecipeResource, SyncRecipeHandler())
+
+        engine = DSSEngine(
+            provider=DSSProvider.from_client(MagicMock()),
+            project_key="PRJ",
+            state_path=tmp_path / "state2.json",
+            registry=registry,
+        )
+
+        r = SyncRecipeResource(name="my_sync", inputs=["ds_a"])
+        with pytest.raises(ValidationError, match="requires at least one output"):
+            engine.plan([r], refresh=False)
+
+    def test_plan_raises_validation_error_sql_no_sql_input(self, tmp_path: Path) -> None:
+        """plan() fails for SQL recipe with non-SQL input — Level 2 validation."""
+        from dss_provisioner.engine.dataset_handler import DatasetHandler
+        from dss_provisioner.engine.recipe_handler import SQLQueryRecipeHandler
+        from dss_provisioner.resources.dataset import FilesystemDatasetResource
+        from dss_provisioner.resources.recipe import SQLQueryRecipeResource
+
+        registry = ResourceTypeRegistry()
+        registry.register(SQLQueryRecipeResource, SQLQueryRecipeHandler())
+        registry.register(FilesystemDatasetResource, DatasetHandler())
+
+        engine = DSSEngine(
+            provider=DSSProvider.from_client(MagicMock()),
+            project_key="PRJ",
+            state_path=tmp_path / "state3.json",
+            registry=registry,
+        )
+
+        fs_ds = FilesystemDatasetResource(
+            name="fs_ds", connection="filesystem_managed", path="/data"
+        )
+        recipe = SQLQueryRecipeResource(
+            name="my_sql", inputs=["fs_ds"], outputs=["out_ds"], code="SELECT 1"
+        )
+
+        with pytest.raises(ValidationError, match="SQL connection"):
+            engine.plan([recipe, fs_ds], refresh=False)
+
+    def test_plan_succeeds_sql_with_sql_input(self, tmp_path: Path) -> None:
+        """plan() succeeds with co-planned SQL dataset — validation passes."""
+        from dss_provisioner.engine.dataset_handler import DatasetHandler
+        from dss_provisioner.engine.recipe_handler import SQLQueryRecipeHandler
+        from dss_provisioner.resources.dataset import SnowflakeDatasetResource
+        from dss_provisioner.resources.recipe import SQLQueryRecipeResource
+
+        registry = ResourceTypeRegistry()
+        registry.register(SQLQueryRecipeResource, SQLQueryRecipeHandler())
+        registry.register(SnowflakeDatasetResource, DatasetHandler())
+
+        engine = DSSEngine(
+            provider=DSSProvider.from_client(MagicMock()),
+            project_key="PRJ",
+            state_path=tmp_path / "state4.json",
+            registry=registry,
+        )
+
+        sf_ds = SnowflakeDatasetResource(
+            name="sf_ds", connection="snowflake_conn", schema_name="public", table="t1"
+        )
+        recipe = SQLQueryRecipeResource(
+            name="my_sql", inputs=["sf_ds"], outputs=["out_ds"], code="SELECT 1"
+        )
+
+        # Should not raise — validation passes
+        plan = engine.plan([recipe, sf_ds], refresh=False)
+        assert any(c.action == Action.CREATE for c in plan.changes)

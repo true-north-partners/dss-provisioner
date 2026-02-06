@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from dss_provisioner.engine.handlers import ResourceHandler
+
 if TYPE_CHECKING:
     from dataikuapi.dss.dataset import DSSDataset, DSSDatasetSettings
     from dataikuapi.dss.project import DSSProject
@@ -48,7 +50,7 @@ def _resolve_variables(value: Any, variables: dict[str, str]) -> Any:
     return value
 
 
-class DatasetHandler:
+class DatasetHandler(ResourceHandler["DatasetResource"]):
     """CRUD handler for DSS datasets.
 
     Handles DatasetResource, SnowflakeDatasetResource, and OracleDatasetResource.

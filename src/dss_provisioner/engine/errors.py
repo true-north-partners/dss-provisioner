@@ -49,5 +49,14 @@ class StateLockError(EngineError):
     """Raised when the state lock cannot be acquired or released."""
 
 
+class ValidationError(EngineError):
+    """One or more resources failed plan validation."""
+
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = errors
+        msg = "Validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        super().__init__(msg)
+
+
 class ApplyCanceled(EngineError):
     """Raised when an apply is canceled (e.g., Ctrl-C)."""

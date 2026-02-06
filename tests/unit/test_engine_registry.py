@@ -3,6 +3,7 @@ from typing import ClassVar
 import pytest
 
 from dss_provisioner.engine.errors import UnknownResourceTypeError
+from dss_provisioner.engine.handlers import ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.resources.base import Resource
 
@@ -12,18 +13,8 @@ class DummyResource(Resource):
     value: int
 
 
-class DummyHandler:
-    def read(self, ctx, prior):  # pragma: no cover
-        raise NotImplementedError
-
-    def create(self, ctx, desired):  # pragma: no cover
-        raise NotImplementedError
-
-    def update(self, ctx, desired, prior):  # pragma: no cover
-        raise NotImplementedError
-
-    def delete(self, ctx, prior):  # pragma: no cover
-        raise NotImplementedError
+class DummyHandler(ResourceHandler["DummyResource"]):
+    pass
 
 
 def test_registry_register_and_get() -> None:
