@@ -21,4 +21,4 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: uv sync --extra dev
+      run: uv sync --extra dev ${{ inputs.python-version && format('--python {0}', inputs.python-version) || '' }}
