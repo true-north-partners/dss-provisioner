@@ -12,7 +12,12 @@ dependencies = [
     "pydantic-settings>=2.7",
     "dataiku-api-client>=14.0",
     "ruamel-yaml>=0.18",
+    "typer>=0.9",
+    "rich>=13.0",
 ]
+
+[project.scripts]
+dss-provisioner = "dss_provisioner.cli:app"
 
 [project.optional-dependencies]
 dev = [

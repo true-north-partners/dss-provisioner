@@ -451,6 +451,59 @@ class TestEngineValidation:
 # ---------------------------------------------------------------------------
 
 
+class TestProgressCallback:
+    """Tests that engine.apply() invokes the progress callback correctly."""
+
+    def test_progress_callback_receives_start_and_done(self, tmp_path: Path) -> None:
+        engine, _handler = _engine(tmp_path)
+
+        r1 = DummyResource(name="r1", value=1)
+        plan = engine.plan([r1])
+
+        events: list[tuple[str, str]] = []
+
+        def on_progress(change: Any, event: str) -> None:
+            events.append((change.address, event))
+
+        engine.apply(plan, progress=on_progress)
+
+        assert ("dummy.r1", "start") in events
+        assert ("dummy.r1", "done") in events
+        # "start" must come before "done" for the same resource
+        start_idx = events.index(("dummy.r1", "start"))
+        done_idx = events.index(("dummy.r1", "done"))
+        assert start_idx < done_idx
+
+    def test_progress_callback_not_called_for_noop(self, tmp_path: Path) -> None:
+        engine, _handler = _engine(tmp_path)
+
+        r1 = DummyResource(name="r1", value=1)
+        engine.apply(engine.plan([r1]))
+
+        # Second plan is all NOOP — no progress events
+        plan2 = engine.plan([r1])
+        events: list[tuple[str, str]] = []
+        engine.apply(plan2, progress=lambda c, e: events.append((c.address, e)))
+
+        # NOOP operations don't emit "done" (they might emit "start" since
+        # op.change is non-None for NOOP but did_change is False)
+        assert not any(e == "done" for _, e in events)
+
+    def test_progress_callback_multiple_resources(self, tmp_path: Path) -> None:
+        engine, _handler = _engine(tmp_path)
+
+        r1 = DummyResource(name="a", value=1)
+        r2 = DummyResource(name="b", value=2, depends_on=["dummy.a"])
+        plan = engine.plan([r1, r2])
+
+        done_events: list[str] = []
+        engine.apply(
+            plan, progress=lambda c, e: done_events.append(c.address) if e == "done" else None
+        )
+
+        assert done_events == ["dummy.a", "dummy.b"]
+
+
 class FailOnceHandler(InMemoryHandler):
     """Handler that raises on the first create of a specific resource, then works."""
 

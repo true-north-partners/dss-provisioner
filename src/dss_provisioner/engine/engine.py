@@ -5,8 +5,9 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from dss_provisioner import __version__
 from dss_provisioner.core.state import State, compute_attributes_hash, compute_state_digest
@@ -28,6 +29,8 @@ from dss_provisioner.engine.operations import (
     UpdateOperation,
 )
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
+
+ProgressCallback = Callable[[ResourceChange, Literal["start", "done"]], None]
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -362,7 +365,7 @@ class DSSEngine:
 
         return ops
 
-    def apply(self, plan: Plan) -> ApplyResult:
+    def apply(self, plan: Plan, *, progress: ProgressCallback | None = None) -> ApplyResult:
         with StateLock(self._state_path):
             state = self._load_state_for_apply(plan)
             if state.project_key != self._project_key:
@@ -382,11 +385,15 @@ class DSSEngine:
 
             try:
                 for op in ordered_ops:
+                    if progress and op.change is not None:
+                        progress(op.change, "start")
                     did_change = op.run(ctx=ctx, state=state, registry=self._registry)
                     if not did_change:
                         continue
 
                     assert op.change is not None
+                    if progress:
+                        progress(op.change, "done")
 
                     state.serial += 1
                     state.save(self._state_path)
