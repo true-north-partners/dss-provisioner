@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import typer
 
@@ -48,7 +48,7 @@ def _apply_with_progress(plan_obj: Plan, cfg: Config, *, color: bool) -> ApplyRe
 
     from dss_provisioner.cli.formatting import _ACTION_STYLES
     from dss_provisioner.config import apply
-    from dss_provisioner.engine.types import Action
+    from dss_provisioner.engine.types import Action, ResourceChange
 
     console = Console(no_color=not color)
     actionable = [c for c in plan_obj.changes if c.action != Action.NOOP]
@@ -62,12 +62,12 @@ def _apply_with_progress(plan_obj: Plan, cfg: Config, *, color: bool) -> ApplyRe
     ) as progress:
         task = progress.add_task("Applying", total=len(actionable))
 
-        def on_progress(change: object, event: str) -> None:
-            s = _ACTION_STYLES[change.action.value]  # type: ignore[union-attr]
+        def on_progress(change: ResourceChange, event: Literal["start", "done"]) -> None:
+            s = _ACTION_STYLES[change.action.value]
             if event == "start":
-                progress.update(task, description=f"{change.address}: {s.progress_verb}...")  # type: ignore[union-attr]
+                progress.update(task, description=f"{change.address}: {s.progress_verb}...")
             elif event == "done":
-                progress.console.print(f"  {change.address}: {s.done_verb}")  # type: ignore[union-attr]
+                progress.console.print(f"  {change.address}: {s.done_verb}")
                 progress.advance(task)
 
         return apply(plan_obj, cfg, progress=on_progress)
@@ -103,7 +103,11 @@ def _confirm_and_apply(
     typer.echo()
 
     if not auto_approve:
-        typer.confirm(confirm_msg, abort=True)
+        try:
+            typer.confirm(confirm_msg, abort=True)
+        except typer.Abort as e:
+            typer.echo("Apply canceled.", err=True)
+            raise typer.Exit(1) from e
 
     try:
         result = _apply_with_progress(plan_obj, cfg, color=color)

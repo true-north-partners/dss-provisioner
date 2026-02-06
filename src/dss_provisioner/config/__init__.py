@@ -95,10 +95,11 @@ def drift(config: Config) -> list[ResourceChange]:
         if old is None:
             continue
         if old != inst.attributes:
+            all_keys = set(old) | set(inst.attributes)
             diff = {
-                k: {"from": old.get(k), "to": v}
-                for k, v in inst.attributes.items()
-                if old.get(k) != v
+                k: {"from": old.get(k), "to": inst.attributes.get(k)}
+                for k in all_keys
+                if old.get(k) != inst.attributes.get(k)
             }
             changes.append(
                 ResourceChange(

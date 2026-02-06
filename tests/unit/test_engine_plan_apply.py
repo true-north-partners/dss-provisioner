@@ -480,14 +480,12 @@ class TestProgressCallback:
         r1 = DummyResource(name="r1", value=1)
         engine.apply(engine.plan([r1]))
 
-        # Second plan is all NOOP — no progress events
+        # Second plan is all NOOP — the engine skips NOOP changes entirely,
+        # so the progress callback must not be invoked at all.
         plan2 = engine.plan([r1])
         events: list[tuple[str, str]] = []
         engine.apply(plan2, progress=lambda c, e: events.append((c.address, e)))
-
-        # NOOP operations don't emit "done" (they might emit "start" since
-        # op.change is non-None for NOOP but did_change is False)
-        assert not any(e == "done" for _, e in events)
+        assert events == []
 
     def test_progress_callback_multiple_resources(self, tmp_path: Path) -> None:
         engine, _handler = _engine(tmp_path)
