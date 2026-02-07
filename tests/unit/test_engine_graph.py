@@ -18,3 +18,24 @@ def test_cycle_detection() -> None:
     graph = DependencyGraph(nodes=["a", "b"], dependencies={"a": ["b"], "b": ["a"]})
     with pytest.raises(DependencyCycleError):
         graph.topological_order()
+
+
+def test_priority_ordering() -> None:
+    """Nodes with lower priority come first when no deps constrain order."""
+    graph = DependencyGraph(
+        nodes=["high", "low"],
+        dependencies={},
+        priorities={"high": 100, "low": 0},
+    )
+    assert graph.topological_order() == ["low", "high"]
+
+
+def test_priority_does_not_override_deps() -> None:
+    """Dependencies are still respected even with priority mismatch."""
+    graph = DependencyGraph(
+        nodes=["high", "low"],
+        dependencies={"low": ["high"]},
+        priorities={"high": 100, "low": 0},
+    )
+    # "high" must come first due to dependency, despite having higher priority value
+    assert graph.topological_order() == ["high", "low"]

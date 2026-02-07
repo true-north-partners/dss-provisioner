@@ -14,8 +14,14 @@ if TYPE_CHECKING:
 class DependencyGraph:
     """A directed graph where nodes depend on other nodes."""
 
-    def __init__(self, nodes: Iterable[str], dependencies: Mapping[str, Iterable[str]]) -> None:
+    def __init__(
+        self,
+        nodes: Iterable[str],
+        dependencies: Mapping[str, Iterable[str]],
+        priorities: Mapping[str, int] | None = None,
+    ) -> None:
         self._nodes = set(nodes)
+        self._priorities = priorities or {}
         # node -> filtered deps within graph
         self._deps: dict[str, set[str]] = {}
         for node in self._nodes:
@@ -23,7 +29,7 @@ class DependencyGraph:
             self._deps[node] = {d for d in deps if d in self._nodes}
 
     def topological_order(self) -> list[str]:
-        """Return deterministic topo order (lexicographic tie-break)."""
+        """Return deterministic topo order (priority, then lexicographic tie-break)."""
         indegree: dict[str, int] = dict.fromkeys(self._nodes, 0)
         dependents: dict[str, set[str]] = {n: set() for n in self._nodes}
 
@@ -32,17 +38,19 @@ class DependencyGraph:
             for dep in deps:
                 dependents[dep].add(node)
 
-        ready: list[str] = [n for n, deg in indegree.items() if deg == 0]
+        ready: list[tuple[int, str]] = [
+            (self._priorities.get(n, 0), n) for n, deg in indegree.items() if deg == 0
+        ]
         heapq.heapify(ready)
 
         order: list[str] = []
         while ready:
-            node = heapq.heappop(ready)
+            _, node = heapq.heappop(ready)
             order.append(node)
             for child in sorted(dependents[node]):
                 indegree[child] -= 1
                 if indegree[child] == 0:
-                    heapq.heappush(ready, child)
+                    heapq.heappush(ready, (self._priorities.get(child, 0), child))
 
         if len(order) != len(self._nodes):
             remaining = sorted(self._nodes - set(order))

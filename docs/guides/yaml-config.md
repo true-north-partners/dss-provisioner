@@ -25,6 +25,13 @@ provider:
 
 state_path: .dss-state.json
 
+variables:
+  standard:
+    env: prod
+    data_root: /mnt/data
+  local:
+    debug: "false"
+
 zones:
   - name: raw
     color: "#4a90d9"
@@ -85,9 +92,25 @@ recipes:
 |---|---|---|---|
 | `provider` | object | — | DSS connection settings (required) |
 | `state_path` | string | `.dss-state.json` | Path to state file |
+| `variables` | object | — | Project variables (singleton, applied first) |
 | `zones` | list | `[]` | Flow zone definitions (provisioned before datasets/recipes) |
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
+
+## Variables fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | `variables` | Resource name (singleton — rarely overridden) |
+| `standard` | dict | `{}` | Standard project variables (shared across instances) |
+| `local` | dict | `{}` | Local project variables (instance-specific) |
+| `description` | string | `""` | Not used by DSS variables (ignored) |
+| `tags` | list | `[]` | Not used by DSS variables (ignored) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+Variables use **partial semantics**: only declared keys are managed. Extra keys already in DSS are preserved.
+
+Variables are always applied before other resource types due to their `plan_priority: 0` (other resources default to 100).
 
 ## Zone fields
 

@@ -21,6 +21,9 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.variables import (
+    VariablesResource,  # noqa: TC001 — Pydantic needs this at runtime
+)
 from dss_provisioner.resources.zone import (
     ZoneResource,  # noqa: TC001 — Pydantic needs this at runtime
 )
@@ -92,6 +95,7 @@ class Config(BaseModel):
 
     provider: ProviderConfig
     state_path: Path = Path(".dss-state.json")
+    variables: VariablesResource | None = None
     zones: Annotated[list[ZoneResource], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
@@ -101,4 +105,7 @@ class Config(BaseModel):
     @property
     def resources(self) -> list[Resource]:
         """All declared resources — ordering is not significant."""
-        return [*self.zones, *self.datasets, *self.recipes]
+        resources: list[Resource] = [*self.zones, *self.datasets, *self.recipes]
+        if self.variables is not None:
+            resources.append(self.variables)
+        return resources

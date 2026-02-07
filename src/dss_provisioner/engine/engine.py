@@ -276,7 +276,10 @@ class DSSEngine:
             else:
                 variables = get_variables(ctx)
                 topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
-                order = DependencyGraph(desired_addrs, topo_deps).topological_order()
+                priorities = {addr: r.plan_priority for addr, r in desired_by_addr.items()}
+                order = DependencyGraph(
+                    desired_addrs, topo_deps, priorities=priorities
+                ).topological_order()
                 changes = [
                     self._classify_change(
                         addr, desired_by_addr[addr], state, dep_map[addr], variables
@@ -301,16 +304,25 @@ class DSSEngine:
 
     def _delete_order(self, state: State, delete_set: set[str]) -> list[str]:
         dep_map: dict[str, list[str]] = {}
+        priorities: dict[str, int] = {}
         for addr in delete_set:
             inst = state.resources[addr]
             dep_map[addr] = [d for d in inst.dependencies if d in delete_set]
-        return DependencyGraph(delete_set, dep_map).reverse_topological_order()
+            priorities[addr] = self._registry.get(inst.resource_type).model.plan_priority
+        return DependencyGraph(
+            delete_set, dep_map, priorities=priorities
+        ).reverse_topological_order()
 
     def _operation_order(self, plan: Plan, state: State) -> list[Operation]:
         """Compute a deterministic operation order using an operation graph."""
         ops = self._build_apply_operations(plan, state)
         dep_map = {k: op.deps for k, op in ops.items()}
-        order = DependencyGraph(ops.keys(), dep_map).topological_order()
+        priorities: dict[str, int] = {}
+        for k, op in ops.items():
+            if op.change is not None:
+                reg = self._registry.get(op.change.resource_type)
+                priorities[k] = reg.model.plan_priority
+        order = DependencyGraph(ops.keys(), dep_map, priorities=priorities).topological_order()
         return [ops[k] for k in order]
 
     def _build_apply_operations(self, plan: Plan, state: State) -> dict[str, Operation]:
