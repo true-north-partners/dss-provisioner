@@ -28,7 +28,12 @@ class VariablesHandler(ResourceHandler["VariablesResource"]):
 
     def create(self, ctx: EngineContext, desired: VariablesResource) -> dict[str, Any]:
         project = ctx.provider.client.get_project(ctx.project_key)
-        project.set_variables({"standard": desired.standard, "local": desired.local})
+        current = project.get_variables()
+        merged = {
+            "standard": {**current.get("standard", {}), **desired.standard},
+            "local": {**current.get("local", {}), **desired.local},
+        }
+        project.set_variables(merged)
         return self._read_attrs(ctx)
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any]:

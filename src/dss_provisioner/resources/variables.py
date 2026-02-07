@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from pydantic import Field
 
@@ -21,6 +21,6 @@ class VariablesResource(Resource):
     resource_type: ClassVar[str] = "dss_variables"
     plan_priority: ClassVar[int] = 0
 
-    name: str = "variables"
+    name: Literal["variables"] = "variables"
     standard: dict[str, Any] = Field(default_factory=dict)
     local: dict[str, Any] = Field(default_factory=dict)

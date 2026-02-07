@@ -69,6 +69,25 @@ class TestCreate:
         assert result["local"] == {"debug": "false"}
         assert result["name"] == "variables"
 
+    def test_preserves_existing_keys(
+        self,
+        ctx: EngineContext,
+        handler: VariablesHandler,
+        mock_project: MagicMock,
+    ) -> None:
+        """Existing DSS keys not in config are preserved on create."""
+        mock_project.get_variables.return_value = {
+            "standard": {"existing": "keep_me"},
+            "local": {"other": "preserved"},
+        }
+
+        desired = VariablesResource(standard={"env": "prod"})
+        handler.create(ctx, desired)
+
+        mock_project.set_variables.assert_called_once_with(
+            {"standard": {"existing": "keep_me", "env": "prod"}, "local": {"other": "preserved"}}
+        )
+
 
 class TestRead:
     def test_returns_current_state(
@@ -139,6 +158,30 @@ class TestUpdate:
             {"standard": {"env": "prod"}, "local": {}}
         )
         assert result["standard"] == {"env": "prod"}
+
+    def test_preserves_existing_keys(
+        self,
+        ctx: EngineContext,
+        handler: VariablesHandler,
+        mock_project: MagicMock,
+    ) -> None:
+        """Existing DSS keys not in config are preserved on update."""
+        mock_project.get_variables.return_value = {
+            "standard": {"existing": "keep_me", "env": "old"},
+            "local": {},
+        }
+
+        desired = VariablesResource(standard={"env": "new"})
+        prior = ResourceInstance(
+            address="dss_variables.variables",
+            resource_type="dss_variables",
+            name="variables",
+        )
+        handler.update(ctx, desired, prior)
+
+        mock_project.set_variables.assert_called_once_with(
+            {"standard": {"existing": "keep_me", "env": "new"}, "local": {}}
+        )
 
 
 class TestDelete:

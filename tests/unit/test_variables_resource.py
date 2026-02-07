@@ -48,3 +48,7 @@ class TestVariablesResource:
 
     def test_plan_priority(self) -> None:
         assert VariablesResource.plan_priority == 0
+
+    def test_name_must_be_variables(self) -> None:
+        with pytest.raises(ValidationError, match="literal_error"):
+            VariablesResource(name="custom")  # type: ignore[arg-type]
