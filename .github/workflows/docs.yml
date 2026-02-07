@@ -1,8 +1,6 @@
 name: Docs
 
 on:
-  push:
-    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
@@ -22,33 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-dev:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Prepare mkdocs overlay
-        run: |
-          cat > mkdocs.mike.yml <<'EOF'
-          INHERIT: mkdocs.yml
-          extra:
-            version:
-              provider: mike
-          EOF
-
-      - uses: ./.github/actions/setup-docs
-
-      - name: Deploy dev docs with mike
-        run: |
-          uv run mike deploy --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push dev
-
   deploy-release:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
