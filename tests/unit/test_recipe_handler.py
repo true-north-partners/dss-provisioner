@@ -582,6 +582,10 @@ def _setup_engine(
 ) -> tuple[DSSEngine, MagicMock, MagicMock]:
     """Wire up a DSSEngine with typed recipe handlers and mocked dataikuapi objects."""
     mock_client = MagicMock()
+    # Default code envs for validate_plan.
+    mock_client.list_code_envs.return_value = [
+        {"envName": "py39", "envLang": "PYTHON"},
+    ]
     provider = DSSProvider.from_client(mock_client)
 
     project = MagicMock()
@@ -755,3 +759,84 @@ class TestRecipeUpdateDetectsCodeChange:
         assert plan2.changes[0].diff is not None
         assert plan2.changes[0].diff["code"]["from"] == "old code"
         assert plan2.changes[0].diff["code"]["to"] == "new code"
+
+
+# ---------------------------------------------------------------------------
+# Python recipe code_env validation tests
+# ---------------------------------------------------------------------------
+
+
+class TestValidatePlanCodeEnv:
+    def test_valid_code_env_accepted(
+        self,
+        ctx: EngineContext,
+        python_handler: PythonRecipeHandler,
+    ) -> None:
+        ctx.provider.client.list_code_envs.return_value = [
+            {"envName": "py39_ml", "envLang": "PYTHON"},
+        ]
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code_env="py39_ml")
+        plan_ctx = PlanContext({desired.address: desired}, State(project_key="PRJ"))
+
+        errors = python_handler.validate_plan(ctx, desired, plan_ctx)
+        assert errors == []
+
+    def test_unknown_code_env_rejected(
+        self,
+        ctx: EngineContext,
+        python_handler: PythonRecipeHandler,
+    ) -> None:
+        ctx.provider.client.list_code_envs.return_value = [
+            {"envName": "py39_ml", "envLang": "PYTHON"},
+        ]
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code_env="nonexistent")
+        plan_ctx = PlanContext({desired.address: desired}, State(project_key="PRJ"))
+
+        errors = python_handler.validate_plan(ctx, desired, plan_ctx)
+        assert len(errors) == 1
+        assert "nonexistent" in errors[0]
+        assert "my_py" in errors[0]
+
+    def test_none_code_env_skips_validation(
+        self,
+        ctx: EngineContext,
+        python_handler: PythonRecipeHandler,
+    ) -> None:
+        desired = PythonRecipeResource(name="my_py", outputs=["out"])
+        plan_ctx = PlanContext({desired.address: desired}, State(project_key="PRJ"))
+
+        errors = python_handler.validate_plan(ctx, desired, plan_ctx)
+        assert errors == []
+        ctx.provider.client.list_code_envs.assert_not_called()
+
+    def test_caches_code_env_list(
+        self,
+        ctx: EngineContext,
+        python_handler: PythonRecipeHandler,
+    ) -> None:
+        ctx.provider.client.list_code_envs.return_value = [
+            {"envName": "py39_ml", "envLang": "PYTHON"},
+        ]
+        d1 = PythonRecipeResource(name="r1", outputs=["o1"], code_env="py39_ml")
+        d2 = PythonRecipeResource(name="r2", outputs=["o2"], code_env="py39_ml")
+        plan_ctx = PlanContext({d1.address: d1, d2.address: d2}, State(project_key="PRJ"))
+
+        python_handler.validate_plan(ctx, d1, plan_ctx)
+        python_handler.validate_plan(ctx, d2, plan_ctx)
+
+        # Should only call list_code_envs once (cached)
+        ctx.provider.client.list_code_envs.assert_called_once()
+
+    def test_r_env_not_matched_as_python(
+        self,
+        ctx: EngineContext,
+        python_handler: PythonRecipeHandler,
+    ) -> None:
+        ctx.provider.client.list_code_envs.return_value = [
+            {"envName": "r_base", "envLang": "R"},
+        ]
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code_env="r_base")
+        plan_ctx = PlanContext({desired.address: desired}, State(project_key="PRJ"))
+
+        errors = python_handler.validate_plan(ctx, desired, plan_ctx)
+        assert len(errors) == 1

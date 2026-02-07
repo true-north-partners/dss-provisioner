@@ -42,6 +42,26 @@ Variables use **merge/partial semantics**: only declared keys are managed. Extra
 
 Variables have `plan_priority: 0`, so they are always applied before other resources (zones, datasets, recipes all have priority 100). This ensures variables referenced via `${…}` in other resources are set before those resources are created.
 
+## Code environment defaults
+
+The `code_envs` resource selects existing instance-level code environments as the project defaults. Code environments are **not created or managed** by the provisioner — only the project-level default pointers are set.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `str` | `code_envs` | Resource name (singleton — rarely overridden) |
+| `default_python` | `str \| None` | `None` | Default Python code environment name |
+| `default_r` | `str \| None` | `None` | Default R code environment name |
+
+```yaml
+code_envs:
+  default_python: py39_ml
+  default_r: r_base
+```
+
+Both fields are optional. Omitting a field means "don't manage this default." Only fields that are set are validated and applied — the provisioner calls `client.list_code_envs()` at plan time to verify referenced environments exist on the DSS instance.
+
+Code environment defaults have `plan_priority: 5`, so they are applied after variables (0) but before libraries (10) and other resources.
+
 ## Zone resources
 
 Zones partition a project's flow into logical sections (e.g. raw, curated, reporting). They are provisioned **before** datasets and recipes so that resources can reference them via the `zone` field.

@@ -213,6 +213,27 @@ class SyncRecipeHandler(RecipeHandler["SyncRecipeResource"]):
 class PythonRecipeHandler(RecipeHandler["PythonRecipeResource"]):
     """Handler for Python recipes — adds code payload and code_env support."""
 
+    def __init__(self) -> None:
+        self._code_env_cache: set[str] | None = None
+
+    def validate_plan(
+        self,
+        ctx: EngineContext,
+        desired: PythonRecipeResource,
+        plan_ctx: PlanContext,
+    ) -> list[str]:
+        errors = super().validate_plan(ctx, desired, plan_ctx)
+        if desired.code_env is not None:
+            if self._code_env_cache is None:
+                envs = ctx.provider.client.list_code_envs()
+                self._code_env_cache = {e["envName"] for e in envs if e.get("envLang") == "PYTHON"}
+            if desired.code_env not in self._code_env_cache:
+                errors.append(
+                    f"Python recipe '{desired.name}' references "
+                    f"unknown code env '{desired.code_env}'"
+                )
+        return errors
+
     def _read_extra_attrs(self, settings: Any, raw_def: dict[str, Any]) -> dict[str, Any]:
         env_sel = raw_def.get("params", {}).get("envSelection", {})
         return {

@@ -41,7 +41,7 @@ class TestDefaultRegistry:
 
     def test_total_count(self) -> None:
         registry = default_registry()
-        assert len(registry._registrations) == 13
+        assert len(registry._registrations) == 14
 
     def test_independent_instances(self) -> None:
         r1 = default_registry()

@@ -10,6 +10,7 @@ from ruamel.yaml import YAML
 
 from dss_provisioner.config.loader import ConfigError, load_config
 from dss_provisioner.config.schema import Config
+from dss_provisioner.resources.code_env import CodeEnvResource
 from dss_provisioner.resources.dataset import (
     FilesystemDatasetResource,
     OracleDatasetResource,
@@ -337,3 +338,33 @@ class TestScenarioParsing:
             not isinstance(r, StepBasedScenarioResource | PythonScenarioResource)
             for r in config.resources
         )
+
+
+class TestCodeEnvParsing:
+    def test_both_envs_parsed(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\ncode_envs:\n  default_python: py39_ml\n  default_r: r_base\n"
+        )
+        assert isinstance(config.code_envs, CodeEnvResource)
+        assert config.code_envs.default_python == "py39_ml"
+        assert config.code_envs.default_r == "r_base"
+
+    def test_python_only(self) -> None:
+        config = _parse("provider:\n  project: X\ncode_envs:\n  default_python: py39\n")
+        assert isinstance(config.code_envs, CodeEnvResource)
+        assert config.code_envs.default_python == "py39"
+        assert config.code_envs.default_r is None
+
+    def test_included_in_resources(self) -> None:
+        config = _parse("provider:\n  project: X\ncode_envs:\n  default_python: py39\n")
+        addrs = [r.address for r in config.resources]
+        assert "dss_code_env.code_envs" in addrs
+
+    def test_none_when_omitted(self) -> None:
+        config = _parse("provider:\n  project: X\n")
+        assert config.code_envs is None
+        assert all(not isinstance(r, CodeEnvResource) for r in config.resources)
+
+    def test_invalid_field_rejected(self) -> None:
+        with pytest.raises(ConfigError, match="extra"):
+            _parse("provider:\n  project: X\ncode_envs:\n  bad_field: x\n")

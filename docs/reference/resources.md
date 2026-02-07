@@ -23,6 +23,14 @@ Auto-generated API documentation for all resource types.
     options:
       show_bases: false
 
+## Code Environments
+
+### CodeEnvResource
+
+::: dss_provisioner.resources.code_env.CodeEnvResource
+    options:
+      show_bases: false
+
 ## Zones
 
 ### ZoneResource
