@@ -74,3 +74,4 @@ jobs:
       - name: Deploy dev docs with mike
         run: |
           uv run mike deploy --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push dev
+          uv run mike set-default --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push dev
