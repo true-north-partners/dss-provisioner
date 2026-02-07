@@ -79,5 +79,9 @@ test:
 build_docs:
     uv run mkdocs build --clean
 
+[doc('Serve documentation locally')]
+serve_docs:
+    uv run mkdocs serve
+
 [doc('Clean, install, check, test, build, docs')]
 all: clean install check test build build_docs

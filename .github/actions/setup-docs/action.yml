@@ -1,0 +1,17 @@
+name: Setup docs environment
+description: Install Python, uv, docs dependencies, and configure git for mike
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-python-uv
+
+    - name: Install docs dependencies
+      shell: bash
+      run: uv sync --group docs --frozen
+
+    - name: Configure git for mike
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

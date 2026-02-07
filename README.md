@@ -2,6 +2,8 @@
 
 > Terraform-style resource-as-code for Dataiku DSS
 
+[![Docs](https://img.shields.io/badge/docs-dss--provisioner.pages.dev-blue)](https://dss-provisioner.pages.dev)
+
 **Status: In Development** — Core engine and CLI are functional. Not yet published to PyPI.
 
 ---
@@ -92,7 +94,7 @@ For development:
 ```bash
 git clone https://github.com/true-north-partners/dss-provisioner.git
 cd dss-provisioner
-uv sync --all-extras
+uv sync
 ```
 
 ## Quick start
@@ -121,73 +123,22 @@ datasets:
 ### 3. Plan, apply, manage
 
 ```bash
-# Preview changes
 dss-provisioner plan
-
-# Apply changes
 dss-provisioner apply
-
-# Apply without confirmation prompt
-dss-provisioner apply --auto-approve
-
-# Detect drift from manual DSS changes
 dss-provisioner drift
-
-# Refresh state from live DSS
 dss-provisioner refresh
-
-# Validate configuration
 dss-provisioner validate
-
-# Tear down all managed resources
 dss-provisioner destroy
-
-# Save plan for later apply
-dss-provisioner plan --out plan.json
-dss-provisioner apply plan.json
 ```
 
-## Configuration reference
+## Documentation
 
-### Provider
+Full documentation is available at **[dss-provisioner.pages.dev](https://dss-provisioner.pages.dev)**:
 
-```yaml
-provider:
-  host: https://dss.company.com  # or DSS_HOST env var
-  api_key: secret                # or DSS_API_KEY env var (recommended)
-  project: MY_PROJECT            # or DSS_PROJECT env var
-```
-
-### Datasets
-
-| Type | YAML `type` | Required fields |
-|------|-------------|-----------------|
-| Snowflake | `snowflake` | `connection`, `schema_name`, `table` |
-| Oracle | `oracle` | `connection`, `schema_name`, `table` |
-| Filesystem | `filesystem` | `connection`, `path` |
-| Upload | `upload` | — |
-
-Common optional fields: `managed`, `format_type`, `format_params`, `columns`, `zone`, `description`, `tags`, `depends_on`.
-
-### Recipes
-
-| Type | YAML `type` | Required fields |
-|------|-------------|-----------------|
-| Python | `python` | `inputs`, `outputs`, `code` or `code_file` |
-| SQL Query | `sql_query` | `inputs`, `outputs`, `code` or `code_file` |
-| Sync | `sync` | `inputs`, `outputs` |
-
-### State
-
-State is stored in `.dss-state.json` (configurable via `state_path`). This file tracks what has been deployed and should be committed to version control for team coordination.
-
-## Engine semantics
-
-- One state file manages **one DSS project**. Plan/apply will error if the state belongs to a different project.
-- `plan` performs a **refresh by default** — reads live DSS state and may persist updates.
-- `apply` executes changes in dependency order with **no rollback**. If apply fails, state reflects what was completed.
-- Saved plans are checked for staleness via lineage, serial, and state digest.
-- DSS `${…}` variables (e.g. `${projectKey}`) are resolved transparently during plan comparison.
+- [Configuration reference](https://dss-provisioner.pages.dev/guides/yaml-config/)
+- [Python API](https://dss-provisioner.pages.dev/guides/python-api/)
+- [CLI reference](https://dss-provisioner.pages.dev/reference/cli/)
+- [Architecture](https://dss-provisioner.pages.dev/concepts/architecture/)
 
 ## Implemented
 
@@ -201,13 +152,13 @@ State is stored in `.dss-state.json` (configurable via `state_path`). This file 
 - [x] DSS variable substitution (`${projectKey}`, custom variables)
 - [x] Drift detection and state refresh
 - [x] GitHub Actions CI
+- [x] Documentation site (MkDocs)
 
 ## Roadmap
 
 - [ ] Scenarios and triggers
 - [ ] Managed folders
 - [ ] Import existing DSS projects to YAML
-- [ ] Documentation site (MkDocs)
 
 ## Development
 
