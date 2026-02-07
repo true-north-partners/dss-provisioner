@@ -1,0 +1,132 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy (e.g., v0.1.0)"
+        required: true
+        type: string
+      alias:
+        description: "Alias to update (e.g., latest)"
+        required: false
+        default: "latest"
+        type: string
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare mkdocs overlay
+        run: |
+          cat > mkdocs.mike.yml <<'EOF'
+          INHERIT: mkdocs.yml
+          extra:
+            version:
+              provider: mike
+          EOF
+
+      - uses: ./.github/actions/setup-docs
+
+      - name: Deploy dev docs with mike
+        run: |
+          uv run mike deploy --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push dev
+
+  deploy-release:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stash local actions
+        run: |
+          mkdir -p "$RUNNER_TEMP/local-actions"
+          cp -R .github/actions "$RUNNER_TEMP/local-actions/"
+
+      - name: Resolve docs version
+        id: docs-version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_ALIAS: ${{ github.event.inputs.alias }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="$RELEASE_TAG"
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "No version provided. Use workflow_dispatch with a version or run on a release tag."
+            exit 1
+          fi
+
+          ALIAS=${INPUT_ALIAS:-latest}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+
+          git fetch --tags
+          if git rev-parse "refs/tags/$VERSION" >/dev/null 2>&1; then
+            git checkout "refs/tags/$VERSION"
+          elif git rev-parse "$VERSION" >/dev/null 2>&1; then
+            git checkout "$VERSION"
+          else
+            echo "Version ref not found: $VERSION"
+            exit 1
+          fi
+
+      - name: Restore local actions
+        run: |
+          mkdir -p .github
+          rm -rf .github/actions
+          cp -R "$RUNNER_TEMP/local-actions/actions" .github/actions
+
+      - name: Prepare mkdocs overlay
+        run: |
+          cat > mkdocs.mike.yml <<'EOF'
+          INHERIT: mkdocs.yml
+          extra:
+            version:
+              provider: mike
+          EOF
+
+      - uses: ./.github/actions/setup-docs
+
+      - name: Deploy docs with mike
+        env:
+          VERSION: ${{ steps.docs-version.outputs.version }}
+          ALIAS: ${{ steps.docs-version.outputs.alias }}
+        run: |
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No version tags found. Expected tags like vX.Y.Z."
+            exit 1
+          fi
+
+          if [ "$VERSION" = "$LATEST_TAG" ]; then
+            uv run mike deploy --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push --update-aliases "$VERSION" "$ALIAS"
+            uv run mike set-default --branch gh-pages --remote origin --push "$ALIAS"
+          else
+            uv run mike deploy --config-file mkdocs.mike.yml --branch gh-pages --remote origin --push "$VERSION"
+            uv run mike alias --branch gh-pages --remote origin --push "$LATEST_TAG" "$ALIAS"
+            uv run mike set-default --branch gh-pages --remote origin --push "$ALIAS"
+          fi

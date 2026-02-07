@@ -27,6 +27,12 @@ dev = [
     "pytest>=9.0",
     "pytest-cov>=7.0",
 ]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
+    "mkdocstrings[python]>=0.29",
+    "mike>=2.1",
+]
 
 [build-system]
 requires = ["hatchling"]
