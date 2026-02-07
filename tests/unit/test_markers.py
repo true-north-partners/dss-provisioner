@@ -118,6 +118,15 @@ class TestExtractDssAttrs:
         raw: dict[str, Any] = {}
         assert extract_dss_attrs(M, raw) == {"schema_name": ""}
 
+    def test_required_field_missing_returns_none(self) -> None:
+        """Required fields (no default) return None when absent from raw."""
+
+        class M(BaseModel):
+            table: Annotated[str, DSSParam("params.table")]
+
+        raw: dict[str, Any] = {"params": {}}
+        assert extract_dss_attrs(M, raw) == {"table": None}
+
 
 class TestBuildDssParams:
     def test_builds_params(self) -> None:

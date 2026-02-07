@@ -79,20 +79,22 @@ def _iter_marked_fields(
 
 
 def _resolve_path(raw: dict[str, Any], path: str, default: Any = None) -> Any:
-    """Resolve a dot-separated path (max 2 levels) in a nested dict."""
-    if "." in path:
-        prefix, key = path.split(".", 1)
-        return raw.get(prefix, {}).get(key, default)
-    return raw.get(path, default)
+    """Resolve a dot-separated path in a nested dict."""
+    current: Any = raw
+    for segment in path.split("."):
+        if not isinstance(current, dict) or segment not in current:
+            return default
+        current = current[segment]
+    return current
 
 
 def _field_default(fi: FieldInfo) -> Any:
-    """Model default for a field — falls back to ``""`` for required fields."""
+    """Model default for a field, or ``None`` for required fields."""
     if fi.default is not PydanticUndefined:
         return fi.default
     if fi.default_factory is not None:
         return fi.default_factory()  # type: ignore[call-arg]
-    return ""
+    return None
 
 
 def _coerce_to_list(value: Any) -> list[str]:
