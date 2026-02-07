@@ -78,6 +78,7 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
         try:
             zone = folder.get_zone()
         except Exception:
+            # Flow zones may not be available (e.g. free edition).
             return None
         zone_id = zone.id
         if zone_id == "default":
@@ -154,7 +155,9 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
     ) -> dict[str, Any]:
         _ = prior
         folder = self._get_folder(ctx, desired.name)
-        assert folder is not None
+        if folder is None:
+            msg = f"Managed folder '{desired.name}' not found during update"
+            raise RuntimeError(msg)
 
         settings = folder.get_settings()
         raw = settings.get_raw()

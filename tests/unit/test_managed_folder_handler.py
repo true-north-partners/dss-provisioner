@@ -286,6 +286,23 @@ class TestUpdate:
         assert raw["description"] == "Updated desc"
         assert raw["tags"] == ["new_tag"]
 
+    def test_update_missing_raises(
+        self,
+        ctx: EngineContext,
+        handler: ManagedFolderHandler,
+        mock_project: MagicMock,
+    ) -> None:
+        mock_project.list_managed_folders.return_value = []
+
+        desired = ManagedFolderResource(name="missing", type="Filesystem")
+        prior = ResourceInstance(
+            address="dss_managed_folder.missing",
+            resource_type="dss_managed_folder",
+            name="missing",
+        )
+        with pytest.raises(RuntimeError, match="not found during update"):
+            handler.update(ctx, desired, prior)
+
 
 class TestDelete:
     def test_deletes_folder(
