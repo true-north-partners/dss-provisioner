@@ -38,6 +38,12 @@ zones:
   - name: curated
     color: "#7b61ff"
 
+libraries:
+  - name: shared_utils
+    repository: git@github.com:org/dss-shared-lib.git
+    checkout: main
+    path: python
+
 datasets:
   - name: customers_raw
     type: snowflake
@@ -94,6 +100,7 @@ recipes:
 | `state_path` | string | `.dss-state.json` | Path to state file |
 | `variables` | object | — | Project variables (singleton, applied first) |
 | `zones` | list | `[]` | Flow zone definitions (provisioned before datasets/recipes) |
+| `libraries` | list | `[]` | Git library references (applied after variables, before datasets/recipes) |
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
 
@@ -124,6 +131,22 @@ Variables are always applied before other resource types due to their `plan_prio
 
 !!! note
     Flow zones require DSS Enterprise. On Free Edition the zone API is unavailable.
+
+## Library fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Local target path in the library hierarchy |
+| `repository` | string | — | **Required.** Git repository URL |
+| `checkout` | string | `main` | Branch, tag, or commit hash to check out |
+| `path` | string | `""` | Subpath within the Git repository |
+| `add_to_python_path` | bool | `true` | Add to `pythonPath` in `external-libraries.json` |
+| `description` | string | `""` | Not used by DSS libraries (ignored) |
+| `tags` | list | `[]` | Not used by DSS libraries (ignored) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+!!! note
+    `add_to_python_path` is a create-time-only field. To change it, delete and recreate the library.
 
 ## Dataset fields
 

@@ -62,6 +62,31 @@ zones:
 !!! note
     Flow zones require DSS Enterprise. On Free Edition the zone API returns 404: `read` and `delete` degrade gracefully (return None / no-op), while `create` and `update` raise a clear `RuntimeError` since the zone cannot actually be provisioned.
 
+## Git library resources
+
+Git libraries import external Git repositories into a project's library, making shared code available to recipes. Each library entry maps to a Git reference in DSS's `external-libraries.json`.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `str` | — | Local target path in the library hierarchy (unique key) |
+| `repository` | `str` | — | Git repository URL |
+| `checkout` | `str` | `main` | Branch, tag, or commit hash |
+| `path` | `str` | `""` | Subpath within the Git repository |
+| `add_to_python_path` | `bool` | `true` | Add to `pythonPath` in `external-libraries.json` |
+
+```yaml
+libraries:
+  - name: shared_utils
+    repository: git@github.com:org/dss-shared-lib.git
+    checkout: main
+    path: python
+```
+
+Libraries have `plan_priority: 10`, so they are applied after variables (0) but before datasets and recipes (100). This ensures library code is available before recipes that import from it are created.
+
+!!! note
+    `add_to_python_path` is a create-time-only field. Changing it after creation requires deleting and recreating the library. Credentials (SSH keys) are configured at the DSS instance level — no `login`/`password` fields are needed in the YAML config.
+
 ## Dataset resources
 
 All datasets share common fields from `DatasetResource`:

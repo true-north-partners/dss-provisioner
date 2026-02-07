@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dss_provisioner.engine.dataset_handler import DatasetHandler
+from dss_provisioner.engine.git_library_handler import GitLibraryHandler
 from dss_provisioner.engine.recipe_handler import (
     PythonRecipeHandler,
     SQLQueryRecipeHandler,
@@ -18,6 +19,7 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     SQLQueryRecipeResource,
@@ -33,6 +35,7 @@ def default_registry() -> ResourceTypeRegistry:
 
     registry.register(VariablesResource, VariablesHandler())
     registry.register(ZoneResource, ZoneHandler())
+    registry.register(GitLibraryResource, GitLibraryHandler())
 
     dataset_handler = DatasetHandler()
     registry.register(DatasetResource, dataset_handler)

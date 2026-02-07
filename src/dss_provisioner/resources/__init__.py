@@ -8,6 +8,7 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.loader import resolve_code_files
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
@@ -22,6 +23,7 @@ __all__ = [
     "Column",
     "DatasetResource",
     "FilesystemDatasetResource",
+    "GitLibraryResource",
     "OracleDatasetResource",
     "PythonRecipeResource",
     "RecipeResource",
