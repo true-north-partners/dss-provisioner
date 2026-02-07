@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dss_provisioner.engine.code_env_handler import CodeEnvHandler
 from dss_provisioner.engine.dataset_handler import DatasetHandler
 from dss_provisioner.engine.git_library_handler import GitLibraryHandler
 from dss_provisioner.engine.recipe_handler import (
@@ -16,6 +17,7 @@ from dss_provisioner.engine.scenario_handler import (
 )
 from dss_provisioner.engine.variables_handler import VariablesHandler
 from dss_provisioner.engine.zone_handler import ZoneHandler
+from dss_provisioner.resources.code_env import CodeEnvResource
 from dss_provisioner.resources.dataset import (
     DatasetResource,
     FilesystemDatasetResource,
@@ -42,6 +44,7 @@ def default_registry() -> ResourceTypeRegistry:
     registry = ResourceTypeRegistry()
 
     registry.register(VariablesResource, VariablesHandler())
+    registry.register(CodeEnvResource, CodeEnvHandler())
     registry.register(ZoneResource, ZoneHandler())
     registry.register(GitLibraryResource, GitLibraryHandler())
 

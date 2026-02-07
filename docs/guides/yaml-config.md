@@ -32,6 +32,10 @@ variables:
   local:
     debug: "false"
 
+code_envs:
+  default_python: py311_pandas
+  default_r: r_base
+
 zones:
   - name: raw
     color: "#4a90d9"
@@ -123,6 +127,7 @@ scenarios:
 | `provider` | object | — | DSS connection settings (required) |
 | `state_path` | string | `.dss-state.json` | Path to state file |
 | `variables` | object | — | Project variables (singleton, applied first) |
+| `code_envs` | object | — | Project default code environments (applied after variables, before libraries) |
 | `zones` | list | `[]` | Flow zone definitions (provisioned before datasets/recipes) |
 | `libraries` | list | `[]` | Git library references (applied after variables, before datasets/recipes) |
 | `datasets` | list | `[]` | Dataset resource definitions |
@@ -143,6 +148,21 @@ scenarios:
 Variables use **partial semantics**: only declared keys are managed. Extra keys already in DSS are preserved.
 
 Variables are always applied before other resource types due to their `plan_priority: 0` (other resources default to 100).
+
+## Code environment fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | `code_envs` | Fixed singleton name (cannot be changed) |
+| `default_python` | string | — | Default Python code environment name (must exist on DSS instance) |
+| `default_r` | string | — | Default R code environment name (must exist on DSS instance) |
+| `description` | string | `""` | Not used by DSS code envs (ignored) |
+| `tags` | list | `[]` | Not used by DSS code envs (ignored) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+Code environments are **instance-scoped** in DSS. The provisioner does not create or manage them — it only selects existing environments as the project default. At plan time, the engine validates that referenced environments exist by calling `list_code_envs()`.
+
+Code environment defaults have `plan_priority: 5`, applied after variables (0) but before libraries (10).
 
 ## Zone fields
 
@@ -317,6 +337,8 @@ At plan time, the engine additionally validates:
 - **`depends_on`** addresses must reference a known resource (in config or state)
 - **`zone`** references must point to a resource of type `dss_zone`
 - **SQL recipe inputs** must include at least one SQL-connection dataset
+- **`code_envs`** `default_python` and `default_r` must reference existing code environments on the DSS instance
+- **Python recipe `code_env`** must reference an existing Python code environment on the DSS instance
 
 ## Dependencies
 

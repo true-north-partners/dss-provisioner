@@ -1,5 +1,6 @@
 """DSS resource definitions."""
 
+from dss_provisioner.resources.code_env import CodeEnvResource
 from dss_provisioner.resources.dataset import (
     Column,
     DatasetResource,
@@ -25,6 +26,7 @@ from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
 
 __all__ = [
+    "CodeEnvResource",
     "Column",
     "DatasetResource",
     "FilesystemDatasetResource",

@@ -9,6 +9,9 @@ from pydantic import BaseModel, BeforeValidator, Discriminator, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dss_provisioner.resources.base import Resource  # noqa: TC001 — Pydantic needs this at runtime
+from dss_provisioner.resources.code_env import (
+    CodeEnvResource,  # noqa: TC001 — Pydantic needs this at runtime
+)
 from dss_provisioner.resources.dataset import (
     DatasetResource,
     FilesystemDatasetResource,
@@ -110,6 +113,7 @@ class Config(BaseModel):
     provider: ProviderConfig
     state_path: Path = Path(".dss-state.json")
     variables: VariablesResource | None = None
+    code_envs: CodeEnvResource | None = None
     zones: Annotated[list[ZoneResource], BeforeValidator(_none_to_list)] = []
     libraries: Annotated[list[GitLibraryResource], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
@@ -130,4 +134,6 @@ class Config(BaseModel):
         ]
         if self.variables is not None:
             resources.append(self.variables)
+        if self.code_envs is not None:
+            resources.append(self.code_envs)
         return resources
