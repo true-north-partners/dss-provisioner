@@ -15,6 +15,7 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.zone import ZoneResource
 
 __all__ = [
     "Column",
@@ -27,5 +28,6 @@ __all__ = [
     "SnowflakeDatasetResource",
     "SyncRecipeResource",
     "UploadDatasetResource",
+    "ZoneResource",
     "resolve_code_files",
 ]

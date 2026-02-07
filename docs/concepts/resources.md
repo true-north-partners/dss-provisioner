@@ -16,6 +16,26 @@ Every resource has:
 
 The `address` is the primary key used in state tracking and plan output.
 
+## Zone resources
+
+Zones partition a project's flow into logical sections (e.g. raw, curated, reporting). They are provisioned **before** datasets and recipes so that resources can reference them via the `zone` field.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `str` | — | Zone identifier (used by `zone` field on datasets/recipes) |
+| `color` | `str` | `#2ab1ac` | Hex color displayed in the flow graph |
+
+```yaml
+zones:
+  - name: raw
+    color: "#4a90d9"
+  - name: curated
+    color: "#7b61ff"
+```
+
+!!! note
+    Flow zones require DSS Enterprise. On Free Edition the zone API returns 404 — `read` returns `None` (treated as externally deleted) and `create`/`update` raise a clear error.
+
 ## Dataset resources
 
 All datasets share common fields from `DatasetResource`:

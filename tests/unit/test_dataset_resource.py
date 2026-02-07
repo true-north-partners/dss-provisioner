@@ -69,6 +69,14 @@ class TestDatasetResource:
         assert ds.tags == []
         assert ds.depends_on == []
 
+    def test_reference_names_without_zone(self) -> None:
+        ds = DatasetResource(name="my_ds", type="Filesystem")
+        assert ds.reference_names() == []
+
+    def test_reference_names_with_zone(self) -> None:
+        ds = DatasetResource(name="my_ds", type="Filesystem", zone="raw")
+        assert ds.reference_names() == ["raw"]
+
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
             DatasetResource(name="my_ds", type="Filesystem", unknown_field="x")  # type: ignore[call-arg]
