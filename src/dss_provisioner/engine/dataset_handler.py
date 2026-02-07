@@ -6,6 +6,14 @@ from typing import TYPE_CHECKING, Any
 
 from dss_provisioner.engine.handlers import ResourceHandler
 from dss_provisioner.engine.variables import get_variables, resolve_variables
+from dss_provisioner.resources.dataset import (
+    DatasetResource,
+    FilesystemDatasetResource,
+    OracleDatasetResource,
+    SnowflakeDatasetResource,
+    UploadDatasetResource,
+)
+from dss_provisioner.resources.markers import extract_dss_attrs
 
 if TYPE_CHECKING:
     from dataikuapi.dss.dataset import DSSDataset, DSSDatasetSettings
@@ -13,24 +21,16 @@ if TYPE_CHECKING:
 
     from dss_provisioner.core.state import ResourceInstance
     from dss_provisioner.engine.handlers import EngineContext
-    from dss_provisioner.resources.dataset import DatasetResource
 
-# Maps resource_type -> list of (model_field, dss_params_key, default) for
-# type-specific fields that live inside raw["params"].
-_EXTRA_PARAM_FIELDS: dict[str, list[tuple[str, str, Any]]] = {
-    "dss_snowflake_dataset": [
-        ("schema_name", "schema", ""),
-        ("table", "table", ""),
-        ("catalog", "catalog", None),
-        ("write_mode", "writeMode", "OVERWRITE"),
-    ],
-    "dss_oracle_dataset": [
-        ("schema_name", "schema", ""),
-        ("table", "table", ""),
-    ],
-    "dss_filesystem_dataset": [
-        ("path", "path", ""),
-    ],
+_RESOURCE_CLASSES: dict[str, type[DatasetResource]] = {
+    cls.resource_type: cls
+    for cls in [
+        DatasetResource,
+        SnowflakeDatasetResource,
+        OracleDatasetResource,
+        FilesystemDatasetResource,
+        UploadDatasetResource,
+    ]
 }
 
 
@@ -110,7 +110,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         self,
         ctx: EngineContext,
         dataset: DSSDataset,
-        resource_type: str,
+        resource_cls: type[DatasetResource],
         name: str,
         type_fallback: str = "",
     ) -> dict[str, Any]:
@@ -135,17 +135,12 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
             "description": meta.get("description", ""),
             "tags": meta.get("tags", []),
             "type": raw.get("type", type_fallback),
-            "connection": raw.get("params", {}).get("connection"),
             "managed": raw.get("managed", False),
-            "format_type": raw.get("formatType"),
-            "format_params": raw.get("formatParams", {}),
             "columns": columns,
             "zone": self._read_zone(dataset),
         }
 
-        params = raw.get("params", {})
-        for model_field, dss_key, default in _EXTRA_PARAM_FIELDS.get(resource_type, []):
-            attrs[model_field] = params.get(dss_key, default)
+        attrs.update(extract_dss_attrs(resource_cls, raw))
 
         return resolve_variables(attrs, self._get_variables(ctx))
 
@@ -170,14 +165,15 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(ctx, dataset, desired.resource_type, desired.name, desired.type)
+        return self._read_attrs(ctx, dataset, type(desired), desired.name, desired.type)
 
     def read(self, ctx: EngineContext, prior: ResourceInstance) -> dict[str, Any] | None:
         """Read dataset from DSS. Returns None if deleted externally."""
         dataset = self._get_dataset(ctx, prior.name)
         if not dataset.exists():
             return None
-        return self._read_attrs(ctx, dataset, prior.resource_type, prior.name)
+        resource_cls = _RESOURCE_CLASSES.get(prior.resource_type, DatasetResource)
+        return self._read_attrs(ctx, dataset, resource_cls, prior.name)
 
     def update(
         self, ctx: EngineContext, desired: DatasetResource, prior: ResourceInstance
@@ -198,7 +194,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         self._apply_metadata(dataset, desired)
         self._apply_zone(dataset, desired)
 
-        return self._read_attrs(ctx, dataset, desired.resource_type, desired.name, desired.type)
+        return self._read_attrs(ctx, dataset, type(desired), desired.name, desired.type)
 
     def delete(self, ctx: EngineContext, prior: ResourceInstance) -> None:
         """Delete a dataset from DSS."""

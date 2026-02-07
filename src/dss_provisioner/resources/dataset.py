@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
 from dss_provisioner.resources.base import Resource
+from dss_provisioner.resources.markers import Compare, DSSParam, Ref, build_dss_params
 
 
 class Column(BaseModel):
@@ -36,22 +37,18 @@ class DatasetResource(Resource):
     sql_types: ClassVar[set[str]] = {"PostgreSQL", "Snowflake", "Oracle", "MySQL"}
 
     type: str
-    connection: str | None = None
+    connection: Annotated[str | None, DSSParam("params.connection")] = None
     managed: bool = False
-    format_type: str | None = None
-    format_params: dict[str, Any] = Field(default_factory=dict)
+    format_type: Annotated[str | None, DSSParam("formatType")] = None
+    format_params: Annotated[dict[str, Any], DSSParam("formatParams"), Compare("partial")] = Field(
+        default_factory=dict
+    )
     columns: list[Column] = Field(default_factory=list)
-    zone: str | None = None
-
-    def reference_names(self) -> list[str]:
-        return [self.zone] if self.zone else []
+    zone: Annotated[str | None, Ref("dss_zone")] = None
 
     def to_dss_params(self) -> dict[str, Any]:
-        """Build the DSS API params dict from resource fields."""
-        params: dict[str, Any] = {}
-        if self.connection is not None:
-            params["connection"] = self.connection
-        return params
+        """Build the DSS API params dict from DSSParam-annotated fields."""
+        return build_dss_params(self)
 
 
 class SnowflakeDatasetResource(DatasetResource):
@@ -61,20 +58,13 @@ class SnowflakeDatasetResource(DatasetResource):
     yaml_alias: ClassVar[str] = "snowflake"
 
     type: Literal["Snowflake"] = "Snowflake"
-    connection: str  # type: ignore[assignment]
-    schema_name: str
-    table: str
-    catalog: str | None = None
-    write_mode: Literal["OVERWRITE", "APPEND", "TRUNCATE"] = "OVERWRITE"
-
-    def to_dss_params(self) -> dict[str, Any]:
-        params = super().to_dss_params()
-        params["schema"] = self.schema_name
-        params["table"] = self.table
-        if self.catalog is not None:
-            params["catalog"] = self.catalog
-        params["writeMode"] = self.write_mode
-        return params
+    connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
+    schema_name: Annotated[str, DSSParam("params.schema")]
+    table: Annotated[str, DSSParam("params.table")]
+    catalog: Annotated[str | None, DSSParam("params.catalog")] = None
+    write_mode: Annotated[
+        Literal["OVERWRITE", "APPEND", "TRUNCATE"], DSSParam("params.writeMode")
+    ] = "OVERWRITE"
 
 
 class OracleDatasetResource(DatasetResource):
@@ -84,15 +74,9 @@ class OracleDatasetResource(DatasetResource):
     yaml_alias: ClassVar[str] = "oracle"
 
     type: Literal["Oracle"] = "Oracle"
-    connection: str  # type: ignore[assignment]
-    schema_name: str
-    table: str
-
-    def to_dss_params(self) -> dict[str, Any]:
-        params = super().to_dss_params()
-        params["schema"] = self.schema_name
-        params["table"] = self.table
-        return params
+    connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
+    schema_name: Annotated[str, DSSParam("params.schema")]
+    table: Annotated[str, DSSParam("params.table")]
 
 
 class FilesystemDatasetResource(DatasetResource):
@@ -102,13 +86,8 @@ class FilesystemDatasetResource(DatasetResource):
     yaml_alias: ClassVar[str] = "filesystem"
 
     type: Literal["Filesystem"] = "Filesystem"
-    connection: str  # type: ignore[assignment]
-    path: str
-
-    def to_dss_params(self) -> dict[str, Any]:
-        params = super().to_dss_params()
-        params["path"] = self.path
-        return params
+    connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
+    path: Annotated[str, DSSParam("params.path")]
 
 
 class UploadDatasetResource(DatasetResource):
