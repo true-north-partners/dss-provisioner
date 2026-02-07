@@ -21,6 +21,9 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.zone import (
+    ZoneResource,  # noqa: TC001 — Pydantic needs this at runtime
+)
 
 
 class ProviderConfig(BaseSettings):
@@ -89,6 +92,7 @@ class Config(BaseModel):
 
     provider: ProviderConfig
     state_path: Path = Path(".dss-state.json")
+    zones: Annotated[list[ZoneResource], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     config_dir: Path = Path()
@@ -96,5 +100,5 @@ class Config(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def resources(self) -> list[Resource]:
-        """All resources (datasets + recipes) in declaration order."""
-        return [*self.datasets, *self.recipes]
+        """All declared resources — ordering is not significant."""
+        return [*self.zones, *self.datasets, *self.recipes]

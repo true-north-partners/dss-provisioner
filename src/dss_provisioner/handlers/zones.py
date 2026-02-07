@@ -19,5 +19,3 @@ class ZoneHandler:
         project = self.client.get_project(project_key)
         flow = project.get_flow()
         return flow.list_zones()
-
-    # TODO: Implement create, update, delete when we have resource definitions

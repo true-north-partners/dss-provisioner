@@ -15,6 +15,14 @@ Auto-generated API documentation for all resource types.
         - address
         - reference_names
 
+## Zones
+
+### ZoneResource
+
+::: dss_provisioner.resources.zone.ZoneResource
+    options:
+      show_bases: false
+
 ## Datasets
 
 ### DatasetResource

@@ -25,6 +25,12 @@ provider:
 
 state_path: .dss-state.json
 
+zones:
+  - name: raw
+    color: "#4a90d9"
+  - name: curated
+    color: "#7b61ff"
+
 datasets:
   - name: customers_raw
     type: snowflake
@@ -79,8 +85,22 @@ recipes:
 |---|---|---|---|
 | `provider` | object | — | DSS connection settings (required) |
 | `state_path` | string | `.dss-state.json` | Path to state file |
+| `zones` | list | `[]` | Flow zone definitions (provisioned before datasets/recipes) |
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
+
+## Zone fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Zone identifier (referenced by dataset/recipe `zone` field) |
+| `color` | string | `#2ab1ac` | Hex color in `#RRGGBB` format |
+| `description` | string | `""` | Not used by DSS zones (ignored) |
+| `tags` | list | `[]` | Not used by DSS zones (ignored) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+!!! note
+    Flow zones require DSS Enterprise. On Free Edition the zone API is unavailable.
 
 ## Dataset fields
 

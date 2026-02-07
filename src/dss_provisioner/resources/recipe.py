@@ -29,7 +29,7 @@ class RecipeResource(Resource):
     zone: str | None = None
 
     def reference_names(self) -> list[str]:
-        return [*self.inputs, *self.outputs]
+        return [*self.inputs, *self.outputs, *([self.zone] if self.zone else [])]
 
 
 class SyncRecipeResource(RecipeResource):

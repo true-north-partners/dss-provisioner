@@ -43,6 +43,9 @@ class DatasetResource(Resource):
     columns: list[Column] = Field(default_factory=list)
     zone: str | None = None
 
+    def reference_names(self) -> list[str]:
+        return [self.zone] if self.zone else []
+
     def to_dss_params(self) -> dict[str, Any]:
         """Build the DSS API params dict from resource fields."""
         params: dict[str, Any] = {}

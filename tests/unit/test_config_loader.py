@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from io import StringIO
+
 import pytest
+from pydantic import ValidationError
+from ruamel.yaml import YAML
 
 from dss_provisioner.config.loader import ConfigError, load_config
+from dss_provisioner.config.schema import Config
 from dss_provisioner.resources.dataset import (
     FilesystemDatasetResource,
     OracleDatasetResource,
@@ -17,11 +22,7 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
-
-_MINIMAL_YAML = """\
-provider:
-  project: TEST
-"""
+from dss_provisioner.resources.zone import ZoneResource
 
 _FULL_YAML = """\
 provider:
@@ -29,6 +30,11 @@ provider:
   project: ANALYTICS
 
 state_path: custom-state.json
+
+zones:
+  - name: raw
+    color: "#4a90d9"
+  - name: curated
 
 datasets:
   - name: snow_ds
@@ -71,83 +77,96 @@ recipes:
 """
 
 
-class TestLoadConfigFull:
-    def test_full_yaml_parses(self, tmp_path) -> None:
-        f = tmp_path / "config.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
+def _parse(yaml_str: str) -> Config:
+    """Parse a YAML string into a Config without touching the filesystem."""
+    raw = YAML(typ="safe").load(StringIO(yaml_str))
+    try:
+        return Config.model_validate(raw)
+    except ValidationError as exc:
+        raise ConfigError(str(exc)) from exc
 
-        assert config.provider.host == "https://dss.example.com"
-        assert config.provider.project == "ANALYTICS"
-        assert str(config.state_path) == "custom-state.json"
-        assert len(config.resources) == 7
+
+@pytest.fixture
+def full_config() -> Config:
+    return _parse(_FULL_YAML)
+
+
+class TestLoadConfigFull:
+    def test_full_yaml_parses(self, full_config: Config) -> None:
+        assert full_config.provider.host == "https://dss.example.com"
+        assert full_config.provider.project == "ANALYTICS"
+        assert str(full_config.state_path) == "custom-state.json"
+        assert len(full_config.resources) == 9
 
     def test_config_dir_set_to_parent(self, tmp_path) -> None:
         f = tmp_path / "sub" / "config.yaml"
         f.parent.mkdir()
-        f.write_text(_MINIMAL_YAML)
+        f.write_text("provider:\n  project: TEST\n")
         config = load_config(f)
         assert config.config_dir == f.parent
 
 
+class TestZoneParsing:
+    def test_zones_included_in_resources(self, full_config: Config) -> None:
+        zone_resources = [r for r in full_config.resources if isinstance(r, ZoneResource)]
+        assert len(zone_resources) == 2
+
+    def test_zone_with_color(self, full_config: Config) -> None:
+        z = full_config.zones[0]
+        assert z.name == "raw"
+        assert z.color == "#4a90d9"
+
+    def test_zone_default_color(self, full_config: Config) -> None:
+        z = full_config.zones[1]
+        assert z.name == "curated"
+        assert z.color == "#2ab1ac"
+
+    def test_empty_zones_section(self) -> None:
+        config = _parse("provider:\n  project: X\nzones:\n")
+        assert config.zones == []
+
+    def test_unknown_zone_field_rejected(self) -> None:
+        with pytest.raises(ConfigError, match="extra"):
+            _parse("provider:\n  project: X\nzones:\n  - name: raw\n    unknown: bad\n")
+
+
 class TestDatasetDiscrimination:
-    def test_snowflake(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        ds = config.resources[0]
+    def test_snowflake(self, full_config: Config) -> None:
+        ds = full_config.datasets[0]
         assert isinstance(ds, SnowflakeDatasetResource)
         assert ds.type == "Snowflake"
         assert ds.schema_name == "RAW"
         assert ds.table == "CUSTOMERS"
 
-    def test_oracle(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        ds = config.resources[1]
+    def test_oracle(self, full_config: Config) -> None:
+        ds = full_config.datasets[1]
         assert isinstance(ds, OracleDatasetResource)
         assert ds.type == "Oracle"
 
-    def test_filesystem(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        ds = config.resources[2]
+    def test_filesystem(self, full_config: Config) -> None:
+        ds = full_config.datasets[2]
         assert isinstance(ds, FilesystemDatasetResource)
         assert ds.path == "/data/input"
 
-    def test_upload(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        ds = config.resources[3]
+    def test_upload(self, full_config: Config) -> None:
+        ds = full_config.datasets[3]
         assert isinstance(ds, UploadDatasetResource)
 
 
 class TestRecipeDiscrimination:
-    def test_python(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        r = config.resources[4]
+    def test_python(self, full_config: Config) -> None:
+        r = full_config.recipes[0]
         assert isinstance(r, PythonRecipeResource)
         assert r.code == "print('hello')"
 
-    def test_sql_query(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        r = config.resources[5]
+    def test_sql_query(self, full_config: Config) -> None:
+        r = full_config.recipes[1]
         assert isinstance(r, SQLQueryRecipeResource)
         assert r.inputs == ["a", "b"]
         assert r.outputs == ["c"]
 
-    def test_sync(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        r = config.resources[6]
+    def test_sync(self, full_config: Config) -> None:
+        r = full_config.recipes[2]
         assert isinstance(r, SyncRecipeResource)
 
 
@@ -164,71 +183,50 @@ class TestStringToListCoercion:
         r = RecipeResource(name="r", type="sync", inputs=["a", "b"])
         assert r.inputs == ["a", "b"]
 
-    def test_yaml_string_coerced(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_FULL_YAML)
-        config = load_config(f)
-        r = config.resources[4]
+    def test_yaml_string_coerced(self, full_config: Config) -> None:
+        r = full_config.recipes[0]
         assert isinstance(r, PythonRecipeResource)
         assert r.inputs == ["raw_data"]
         assert r.outputs == ["clean_data"]
 
 
 class TestConfigErrors:
-    def test_missing_type_on_dataset(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\ndatasets:\n  - name: d\n")
+    def test_missing_type_on_dataset(self) -> None:
         with pytest.raises(ConfigError, match="Unable to extract tag"):
-            load_config(f)
+            _parse("provider:\n  project: X\ndatasets:\n  - name: d\n")
 
-    def test_missing_type_on_recipe(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\nrecipes:\n  - name: r\n")
+    def test_missing_type_on_recipe(self) -> None:
         with pytest.raises(ConfigError, match="Unable to extract tag"):
-            load_config(f)
+            _parse("provider:\n  project: X\nrecipes:\n  - name: r\n")
 
-    def test_unknown_dataset_type(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\ndatasets:\n  - name: d\n    type: PostgreSQL\n")
+    def test_unknown_dataset_type(self) -> None:
         with pytest.raises(ConfigError, match="does not match any of the expected tags"):
-            load_config(f)
+            _parse("provider:\n  project: X\ndatasets:\n  - name: d\n    type: PostgreSQL\n")
 
-    def test_unknown_recipe_type(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\nrecipes:\n  - name: r\n    type: unknown_type\n")
+    def test_unknown_recipe_type(self) -> None:
         with pytest.raises(ConfigError, match="does not match any of the expected tags"):
-            load_config(f)
+            _parse("provider:\n  project: X\nrecipes:\n  - name: r\n    type: unknown_type\n")
 
-    def test_missing_provider(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("datasets: []\n")
+    def test_missing_provider(self) -> None:
         with pytest.raises(ConfigError, match="provider"):
-            load_config(f)
+            _parse("datasets: []\n")
 
-    def test_non_mapping_yaml(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("- item1\n- item2\n")
+    def test_non_mapping_yaml(self) -> None:
         with pytest.raises(ConfigError, match="should be a valid dictionary"):
-            load_config(f)
+            _parse("- item1\n- item2\n")
 
-    def test_empty_sections(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\ndatasets:\nrecipes:\n")
-        config = load_config(f)
+    def test_empty_sections(self) -> None:
+        config = _parse("provider:\n  project: X\nzones:\ndatasets:\nrecipes:\n")
         assert config.resources == []
 
-    def test_pydantic_validation_propagates(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text("provider:\n  project: X\ndatasets:\n  - name: d\n    type: snowflake\n")
+    def test_pydantic_validation_propagates(self) -> None:
         with pytest.raises(ConfigError, match="Field required"):
-            load_config(f)
+            _parse("provider:\n  project: X\ndatasets:\n  - name: d\n    type: snowflake\n")
 
     def test_missing_file(self, tmp_path) -> None:
         with pytest.raises(ConfigError, match="Failed to read"):
             load_config(tmp_path / "nonexistent.yaml")
 
-    def test_default_state_path(self, tmp_path) -> None:
-        f = tmp_path / "c.yaml"
-        f.write_text(_MINIMAL_YAML)
-        config = load_config(f)
+    def test_default_state_path(self) -> None:
+        config = _parse("provider:\n  project: TEST\n")
         assert str(config.state_path) == ".dss-state.json"

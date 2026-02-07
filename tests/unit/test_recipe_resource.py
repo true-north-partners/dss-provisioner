@@ -27,6 +27,14 @@ class TestRecipeResource:
         assert r.tags == []
         assert r.depends_on == []
 
+    def test_reference_names_without_zone(self) -> None:
+        r = RecipeResource(name="r", type="sync", inputs=["ds_a"], outputs=["ds_b"])
+        assert r.reference_names() == ["ds_a", "ds_b"]
+
+    def test_reference_names_with_zone(self) -> None:
+        r = RecipeResource(name="r", type="sync", inputs=["ds_a"], zone="raw")
+        assert r.reference_names() == ["ds_a", "raw"]
+
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):
             RecipeResource(name="r", type="sync", unknown_field="x")  # type: ignore[call-arg]

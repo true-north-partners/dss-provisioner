@@ -40,6 +40,7 @@ State is written atomically (temp file + rename) and a `.backup` copy is kept.
 
 Handlers implement CRUD operations for each resource type. The engine delegates to the appropriate handler based on resource type. Handler categories:
 
+- **ZoneHandler** — Creates, updates, reads, and deletes DSS flow zones
 - **DatasetHandler** — Creates, updates, reads, and deletes DSS datasets
 - **RecipeHandler** — Creates, updates, reads, and deletes DSS recipes
 

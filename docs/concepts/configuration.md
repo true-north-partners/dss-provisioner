@@ -12,6 +12,10 @@ provider:
 
 state_path: .dss-state.json         # default
 
+zones:
+  - name: ...
+    color: "#..."                   # optional hex color
+
 datasets:
   - name: ...
     type: ...
@@ -42,7 +46,7 @@ The `state_path` field (default: `.dss-state.json`) controls where the state fil
 
 ## Type discriminators
 
-Datasets and recipes use the `type` field as a discriminator for Pydantic's tagged union:
+Datasets and recipes use the `type` field as a discriminator for Pydantic's tagged union. Zones have no type discriminator — there is only one zone type.
 
 ```yaml
 datasets:
