@@ -20,7 +20,7 @@ datasets:
 ```yaml
 provider:
   host: https://dss.company.com
-  api_key: ${DSS_API_KEY}
+  # api_key: omit from YAML — set DSS_API_KEY env var instead
   project: ANALYTICS
 
 state_path: .dss-state.json

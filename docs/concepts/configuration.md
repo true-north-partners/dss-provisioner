@@ -25,7 +25,7 @@ recipes:
 
 ## Provider settings
 
-The `provider` block configures the DSS connection. All fields except `project` support environment variable fallbacks:
+The `provider` block configures the DSS connection. All fields support environment variable fallbacks with the `DSS_` prefix:
 
 | Field | Env var | Required | Description |
 |---|---|---|---|
@@ -34,7 +34,7 @@ The `provider` block configures the DSS connection. All fields except `project` 
 | `project` | `DSS_PROJECT` | Yes | Target DSS project key |
 
 !!! tip
-    Use environment variables for `host` and `api_key` to avoid committing secrets. Only `project` typically needs to be in the YAML file.
+    Use environment variables for `host` and `api_key` to avoid committing secrets. Omit `api_key` from YAML entirely and set `DSS_API_KEY` in the environment instead.
 
 ## State path
 
