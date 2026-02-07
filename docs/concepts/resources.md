@@ -68,7 +68,7 @@ Git libraries import external Git repositories into a project's library, making 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | — | Local target path in the library hierarchy (must match `^[a-zA-Z0-9_]+$`) |
+| `name` | `str` | — | Library key / single directory name in the project library (must match `^[a-zA-Z0-9_]+$`; nested paths not supported) |
 | `repository` | `str` | — | Git repository URL (non-empty) |
 | `checkout` | `str` | `main` | Branch, tag, or commit hash |
 | `path` | `str` | `""` | Subpath within the Git repository |

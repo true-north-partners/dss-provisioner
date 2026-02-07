@@ -161,7 +161,7 @@ Variables are always applied before other resource types due to their `plan_prio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Local target path in the library hierarchy. Must match `^[a-zA-Z0-9_]+$` |
+| `name` | string | — | **Required.** Library key (single segment in the library hierarchy; letters, digits, and underscores only). Must match `^[a-zA-Z0-9_]+$` |
 | `repository` | string | — | **Required.** Git repository URL (non-empty) |
 | `checkout` | string | `main` | Branch, tag, or commit hash to check out |
 | `path` | string | `""` | Subpath within the Git repository |
@@ -251,7 +251,7 @@ Upload datasets have no additional required fields. They default to `managed: tr
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `inputs` | string or list | — | **Required.** Input dataset name(s) (min 1 element, must reference SQL-type datasets) |
+| `inputs` | string or list | — | **Required.** Input dataset name(s) (min 1 element; validated at plan time — at least one input must reference a SQL-connection dataset) |
 | `code` | string | `""` | Inline SQL code |
 | `code_file` | string | — | Path to SQL file (relative to config file) |
 
@@ -306,7 +306,7 @@ Additional parse-time constraints:
 
 - **Tags**: each tag must be a non-empty string
 - **Recipe outputs**: at least one output is required
-- **SQL recipe inputs**: at least one input is required (must reference SQL-type datasets)
+- **SQL recipe inputs**: at least one input is required
 - **Zone color**: must be a valid hex color in `#RRGGBB` format
 - **Snowflake/Oracle `schema_name` and `table`**: must be non-empty
 - **Filesystem `path`**: must be non-empty
@@ -316,6 +316,7 @@ At plan time, the engine additionally validates:
 
 - **`depends_on`** addresses must reference a known resource (in config or state)
 - **`zone`** references must point to a resource of type `dss_zone`
+- **SQL recipe inputs** must include at least one SQL-connection dataset
 
 ## Dependencies
 

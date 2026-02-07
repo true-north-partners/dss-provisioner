@@ -92,13 +92,13 @@ Validation catches:
 
 - Missing required fields (e.g., recipe `outputs`, SQL recipe `inputs`)
 - Invalid type discriminators
-- Pydantic type/constraint errors (name pattern, non-empty strings, hex color format)
+- Pydantic type/constraint errors (name pattern `^[a-zA-Z0-9_]+$`, non-empty strings, hex color format)
 - Invalid YAML syntax
-- Resource name format (`^[a-zA-Z0-9_]+$` — letters, digits, underscores only)
 
 At plan time, the engine additionally validates:
 
 - `depends_on` addresses reference known resources
 - `zone` references point to actual zone resources
+- `sql_query` recipes have at least one input that is a SQL-connection dataset
 
 See [YAML configuration](../guides/yaml-config.md) for the full field reference.
