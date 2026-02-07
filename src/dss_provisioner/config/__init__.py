@@ -85,8 +85,7 @@ def refresh(config: Config) -> tuple[list[ResourceChange], State]:
     :func:`save_state` to persist the returned state to disk.
     """
     engine = _engine_from_config(config)
-    old_state = State.load_or_create(config.state_path, config.provider.project)
-    new_state = engine.refresh()
+    old_state, new_state = engine.refresh()
     return _build_drift_changes(old_state, new_state), new_state
 
 

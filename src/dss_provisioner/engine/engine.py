@@ -143,14 +143,16 @@ class DSSEngine:
 
         return changed
 
-    def refresh(self, *, persist: bool = False) -> State:
+    def refresh(self, *, persist: bool = False) -> tuple[State, State]:
+        """Refresh state from DSS. Returns (pre_refresh, post_refresh)."""
         with StateLock(self._state_path):
             state = self._load_state()
+            snapshot = state.model_copy(deep=True)
             changed = self._refresh_state_in_place(state)
             if changed and persist:
                 state.serial += 1
                 state.save(self._state_path)
-            return state
+            return snapshot, state
 
     @staticmethod
     def _resolve_deps(desired_by_addr: dict[str, Resource]) -> dict[str, list[str]]:
