@@ -11,6 +11,11 @@ from dss_provisioner.resources.dataset import (
 )
 from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.loader import resolve_code_files
+from dss_provisioner.resources.managed_folder import (
+    FilesystemManagedFolderResource,
+    ManagedFolderResource,
+    UploadManagedFolderResource,
+)
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     RecipeResource,
@@ -30,7 +35,9 @@ __all__ = [
     "Column",
     "DatasetResource",
     "FilesystemDatasetResource",
+    "FilesystemManagedFolderResource",
     "GitLibraryResource",
+    "ManagedFolderResource",
     "OracleDatasetResource",
     "PythonRecipeResource",
     "PythonScenarioResource",
@@ -41,6 +48,7 @@ __all__ = [
     "StepBasedScenarioResource",
     "SyncRecipeResource",
     "UploadDatasetResource",
+    "UploadManagedFolderResource",
     "VariablesResource",
     "ZoneResource",
     "resolve_code_files",

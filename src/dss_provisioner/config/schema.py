@@ -22,6 +22,11 @@ from dss_provisioner.resources.dataset import (
 from dss_provisioner.resources.git_library import (
     GitLibraryResource,  # noqa: TC001 — Pydantic needs this at runtime
 )
+from dss_provisioner.resources.managed_folder import (
+    FilesystemManagedFolderResource,
+    ManagedFolderResource,
+    UploadManagedFolderResource,
+)
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     SQLQueryRecipeResource,
@@ -86,6 +91,12 @@ def _type_normalizer(base: type[BaseModel]) -> Any:
     return _normalize
 
 
+_ManagedFolderEntry = Annotated[
+    FilesystemManagedFolderResource | UploadManagedFolderResource,
+    BeforeValidator(_type_normalizer(ManagedFolderResource)),
+    Discriminator("type"),
+]
+
 _DatasetEntry = Annotated[
     SnowflakeDatasetResource
     | OracleDatasetResource
@@ -116,6 +127,7 @@ class Config(BaseModel):
     code_envs: CodeEnvResource | None = None
     zones: Annotated[list[ZoneResource], BeforeValidator(_none_to_list)] = []
     libraries: Annotated[list[GitLibraryResource], BeforeValidator(_none_to_list)] = []
+    managed_folders: Annotated[list[_ManagedFolderEntry], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     scenarios: Annotated[list[_ScenarioEntry], BeforeValidator(_none_to_list)] = []
@@ -128,6 +140,7 @@ class Config(BaseModel):
         resources: list[Resource] = [
             *self.zones,
             *self.libraries,
+            *self.managed_folders,
             *self.datasets,
             *self.recipes,
             *self.scenarios,

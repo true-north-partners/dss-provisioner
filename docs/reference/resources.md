@@ -47,6 +47,26 @@ Auto-generated API documentation for all resource types.
     options:
       show_bases: false
 
+## Managed Folders
+
+### ManagedFolderResource
+
+::: dss_provisioner.resources.managed_folder.ManagedFolderResource
+    options:
+      show_bases: false
+
+### FilesystemManagedFolderResource
+
+::: dss_provisioner.resources.managed_folder.FilesystemManagedFolderResource
+    options:
+      show_bases: false
+
+### UploadManagedFolderResource
+
+::: dss_provisioner.resources.managed_folder.UploadManagedFolderResource
+    options:
+      show_bases: false
+
 ## Datasets
 
 ### DatasetResource

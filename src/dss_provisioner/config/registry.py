@@ -5,6 +5,7 @@ from __future__ import annotations
 from dss_provisioner.engine.code_env_handler import CodeEnvHandler
 from dss_provisioner.engine.dataset_handler import DatasetHandler
 from dss_provisioner.engine.git_library_handler import GitLibraryHandler
+from dss_provisioner.engine.managed_folder_handler import ManagedFolderHandler
 from dss_provisioner.engine.recipe_handler import (
     PythonRecipeHandler,
     SQLQueryRecipeHandler,
@@ -26,6 +27,11 @@ from dss_provisioner.resources.dataset import (
     UploadDatasetResource,
 )
 from dss_provisioner.resources.git_library import GitLibraryResource
+from dss_provisioner.resources.managed_folder import (
+    FilesystemManagedFolderResource,
+    ManagedFolderResource,
+    UploadManagedFolderResource,
+)
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     SQLQueryRecipeResource,
@@ -47,6 +53,11 @@ def default_registry() -> ResourceTypeRegistry:
     registry.register(CodeEnvResource, CodeEnvHandler())
     registry.register(ZoneResource, ZoneHandler())
     registry.register(GitLibraryResource, GitLibraryHandler())
+
+    managed_folder_handler = ManagedFolderHandler()
+    registry.register(ManagedFolderResource, managed_folder_handler)
+    registry.register(FilesystemManagedFolderResource, managed_folder_handler)
+    registry.register(UploadManagedFolderResource, managed_folder_handler)
 
     dataset_handler = DatasetHandler()
     registry.register(DatasetResource, dataset_handler)

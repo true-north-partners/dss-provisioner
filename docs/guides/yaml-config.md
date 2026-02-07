@@ -48,6 +48,15 @@ libraries:
     checkout: main
     path: python
 
+managed_folders:
+  - name: trained_models
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/models"
+
+  - name: reports
+    type: upload
+
 datasets:
   - name: customers_raw
     type: snowflake
@@ -130,6 +139,7 @@ scenarios:
 | `code_envs` | object | — | Project default code environments (applied after variables, before libraries) |
 | `zones` | list | `[]` | Flow zone definitions (provisioned before datasets/recipes) |
 | `libraries` | list | `[]` | Git library references (applied after variables, before datasets/recipes) |
+| `managed_folders` | list | `[]` | Managed folder resource definitions |
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
 | `scenarios` | list | `[]` | Scenario resource definitions (applied after datasets/recipes) |
@@ -192,6 +202,31 @@ Code environment defaults have `plan_priority: 5`, applied after variables (0) b
 
 !!! note
     `add_to_python_path` is a create-time-only field. To change it, delete and recreate the library.
+
+## Managed folder fields
+
+### Common fields (all types)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Managed folder name in DSS. Must match `^[a-zA-Z0-9_]+$` |
+| `type` | string | — | **Required.** One of: `filesystem`, `upload` |
+| `connection` | string | — | DSS connection name |
+| `zone` | string | — | Flow zone (Enterprise only). Validated at plan time — must reference a known zone |
+| `description` | string | `""` | Managed folder description |
+| `tags` | list | `[]` | DSS tags. Elements must be non-empty strings |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+### Filesystem-specific fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `connection` | string | — | **Required.** Filesystem connection name |
+| `path` | string | — | **Required.** File path (non-empty, supports `${projectKey}`) |
+
+### Upload-specific fields
+
+Upload managed folders have no additional required fields.
 
 ## Dataset fields
 
