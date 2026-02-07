@@ -1,7 +1,7 @@
 [project]
 name = "dss-provisioner"
 dynamic = ["version"]
-description = "Terraform-style infrastructure-as-code management for Dataiku DSS"
+description = "Terraform-style resource-as-code for Dataiku DSS"
 readme = "README.md"
 authors = [
     { name = "Jonas Meyer-Ohle", email = "19151471+jonas-meyer@users.noreply.github.com" }
@@ -20,12 +20,12 @@ dependencies = [
 [project.scripts]
 dss-provisioner = "dss_provisioner.cli:app"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "ruff>=0.8",
-    "ty>=0.0.1a7",
-    "pytest>=8.0",
-    "pytest-cov>=6.0",
+    "ruff>=0.14",
+    "ty>=0.0.8",
+    "pytest>=9.0",
+    "pytest-cov>=7.0",
 ]
 
 [build-system]
@@ -61,37 +61,20 @@ ignore = [
     "E501",   # line too long (handled by formatter)
 ]
 
-[tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["D100", "D101", "D102", "D103", "D104", "D107"]
-"**/examples/**" = ["D100", "D101", "D102", "D103", "D104", "D107"]
-"conftest.py" = ["D100", "D103"]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-
-[tool.ty.environment]
-python-version = "3.13"
-
 [tool.ty.src]
 include = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "-m 'not integration'"
+addopts = "--strict-markers -m 'not integration'"
 markers = [
     "integration: tests that require a real DSS instance (docker/notebook)",
 ]
 
 [tool.coverage.run]
+source = ["src/dss_provisioner"]
 branch = true
-omit = ["tests/*"]
 
 [tool.coverage.report]
 exclude_also = ["pragma: no cover", "if TYPE_CHECKING", "@overload"]
