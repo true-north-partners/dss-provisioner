@@ -1077,6 +1077,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1621,6 +1632,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1898,7 +1920,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td><code>variables</code></td>
-<td>Resource name (singleton — rarely overridden)</td>
+<td>Resource name (singleton — rarely overridden). Must match <code>^[a-zA-Z0-9_]+$</code></td>
 </tr>
 <tr>
 <td><code>standard</code></td>
@@ -1949,7 +1971,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Zone identifier (referenced by dataset/recipe <code>zone</code> field)</td>
+<td><strong>Required.</strong> Zone identifier (must match <code>^[a-zA-Z0-9_]+$</code>)</td>
 </tr>
 <tr>
 <td><code>color</code></td>
@@ -1996,13 +2018,13 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Local target path in the library hierarchy</td>
+<td><strong>Required.</strong> Library key (single segment in the library hierarchy; letters, digits, and underscores only). Must match <code>^[a-zA-Z0-9_]+$</code></td>
 </tr>
 <tr>
 <td><code>repository</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Git repository URL</td>
+<td><strong>Required.</strong> Git repository URL (non-empty)</td>
 </tr>
 <tr>
 <td><code>checkout</code></td>
@@ -2032,7 +2054,7 @@
 <td><code>tags</code></td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>Not used by DSS libraries (ignored)</td>
+<td>Not used by DSS libraries (ignored). Elements must be non-empty strings</td>
 </tr>
 <tr>
 <td><code>depends_on</code></td>
@@ -2062,7 +2084,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Dataset name in DSS</td>
+<td><strong>Required.</strong> Dataset name in DSS. Must match <code>^[a-zA-Z0-9_]+$</code></td>
 </tr>
 <tr>
 <td><code>type</code></td>
@@ -2104,7 +2126,7 @@
 <td><code>zone</code></td>
 <td>string</td>
 <td>—</td>
-<td>Flow zone (Enterprise only)</td>
+<td>Flow zone (Enterprise only). Validated at plan time — must reference a known zone</td>
 </tr>
 <tr>
 <td><code>description</code></td>
@@ -2116,13 +2138,13 @@
 <td><code>tags</code></td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>DSS tags</td>
+<td>DSS tags. Elements must be non-empty strings</td>
 </tr>
 <tr>
 <td><code>depends_on</code></td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>Explicit resource dependencies (addresses)</td>
+<td>Explicit resource dependencies (addresses). Validated at plan time — each address must exist</td>
 </tr>
 </tbody>
 </table>
@@ -2147,13 +2169,13 @@
 <td><code>schema_name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Snowflake schema</td>
+<td><strong>Required.</strong> Snowflake schema (non-empty)</td>
 </tr>
 <tr>
 <td><code>table</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Table name</td>
+<td><strong>Required.</strong> Table name (non-empty)</td>
 </tr>
 <tr>
 <td><code>catalog</code></td>
@@ -2190,13 +2212,13 @@
 <td><code>schema_name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Oracle schema</td>
+<td><strong>Required.</strong> Oracle schema (non-empty)</td>
 </tr>
 <tr>
 <td><code>table</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Table name</td>
+<td><strong>Required.</strong> Table name (non-empty)</td>
 </tr>
 </tbody>
 </table>
@@ -2221,7 +2243,7 @@
 <td><code>path</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> File path (supports <code>${projectKey}</code>)</td>
+<td><strong>Required.</strong> File path (non-empty, supports <code>${projectKey}</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -2243,7 +2265,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Recipe name in DSS</td>
+<td><strong>Required.</strong> Recipe name in DSS. Must match <code>^[a-zA-Z0-9_]+$</code></td>
 </tr>
 <tr>
 <td><code>type</code></td>
@@ -2255,19 +2277,19 @@
 <td><code>inputs</code></td>
 <td>string or list</td>
 <td><code>[]</code></td>
-<td>Input dataset name(s)</td>
+<td>Input dataset name(s). Elements must be non-empty. <strong>Required</strong> for <code>sql_query</code> (min 1)</td>
 </tr>
 <tr>
 <td><code>outputs</code></td>
 <td>string or list</td>
-<td><code>[]</code></td>
-<td>Output dataset name(s)</td>
+<td>—</td>
+<td><strong>Required.</strong> Output dataset name(s) (min 1 element). Elements must be non-empty</td>
 </tr>
 <tr>
 <td><code>zone</code></td>
 <td>string</td>
 <td>—</td>
-<td>Flow zone (Enterprise only)</td>
+<td>Flow zone (Enterprise only). Validated at plan time — must reference a known zone</td>
 </tr>
 <tr>
 <td><code>description</code></td>
@@ -2279,13 +2301,13 @@
 <td><code>tags</code></td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>DSS tags</td>
+<td>DSS tags. Elements must be non-empty strings</td>
 </tr>
 <tr>
 <td><code>depends_on</code></td>
 <td>list</td>
 <td><code>[]</code></td>
-<td>Explicit resource dependencies (addresses)</td>
+<td>Explicit resource dependencies (addresses). Validated at plan time — each address must exist</td>
 </tr>
 </tbody>
 </table>
@@ -2342,6 +2364,12 @@
 </thead>
 <tbody>
 <tr>
+<td><code>inputs</code></td>
+<td>string or list</td>
+<td>—</td>
+<td><strong>Required.</strong> Input dataset name(s) (min 1 element; validated at plan time — at least one input must reference a SQL-connection dataset)</td>
+</tr>
+<tr>
 <td><code>code</code></td>
 <td>string</td>
 <td><code>""</code></td>
@@ -2373,7 +2401,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Scenario name in DSS</td>
+<td><strong>Required.</strong> Scenario name in DSS. Must match <code>^[a-zA-Z0-9_]+$</code></td>
 </tr>
 <tr>
 <td><code>type</code></td>
@@ -2476,7 +2504,7 @@
 <td><code>name</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Column name</td>
+<td><strong>Required.</strong> Column name (non-empty)</td>
 </tr>
 <tr>
 <td><code>type</code></td>
@@ -2498,6 +2526,24 @@
 </tr>
 </tbody>
 </table>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<p>All resource names must match <code>^[a-zA-Z0-9_]+$</code> (letters, digits, and underscores only). This is enforced at config load time.</p>
+<p>Additional parse-time constraints:</p>
+<ul>
+<li><strong>Tags</strong>: each tag must be a non-empty string</li>
+<li><strong>Recipe outputs</strong>: at least one output is required</li>
+<li><strong>SQL recipe inputs</strong>: at least one input is required</li>
+<li><strong>Zone color</strong>: must be a valid hex color in <code>#RRGGBB</code> format</li>
+<li><strong>Snowflake/Oracle <code>schema_name</code> and <code>table</code></strong>: must be non-empty</li>
+<li><strong>Filesystem <code>path</code></strong>: must be non-empty</li>
+<li><strong>Git library <code>repository</code></strong>: must be non-empty</li>
+</ul>
+<p>At plan time, the engine additionally validates:</p>
+<ul>
+<li><strong><code>depends_on</code></strong> addresses must reference a known resource (in config or state)</li>
+<li><strong><code>zone</code></strong> references must point to a resource of type <code>dss_zone</code></li>
+<li><strong>SQL recipe inputs</strong> must include at least one SQL-connection dataset</li>
+</ul>
 <h2 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h2>
 <p>Resources can depend on each other in two ways:</p>
 <h3 id="explicit-dependencies">Explicit dependencies<a class="headerlink" href="#explicit-dependencies" title="Permanent link">&para;</a></h3>

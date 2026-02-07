@@ -1569,7 +1569,7 @@
 <tbody>
 <tr>
 <td><code>name</code></td>
-<td>Unique name within the DSS project</td>
+<td>Unique name within the DSS project. Must match <code>^[a-zA-Z0-9_]+$</code> (letters, digits, underscores)</td>
 </tr>
 <tr>
 <td><code>description</code></td>
@@ -1577,11 +1577,11 @@
 </tr>
 <tr>
 <td><code>tags</code></td>
-<td>Optional list of tags</td>
+<td>Optional list of tags (each element must be a non-empty string)</td>
 </tr>
 <tr>
 <td><code>depends_on</code></td>
-<td>Explicit dependencies on other resources</td>
+<td>Explicit dependencies on other resources. Validated at plan time — each address must exist</td>
 </tr>
 <tr>
 <td><code>address</code></td>
@@ -1651,13 +1651,13 @@
 <td><code>name</code></td>
 <td><code>str</code></td>
 <td>—</td>
-<td>Zone identifier (used by <code>zone</code> field on datasets/recipes)</td>
+<td>Zone identifier (must match <code>^[a-zA-Z0-9_]+$</code>)</td>
 </tr>
 <tr>
 <td><code>color</code></td>
 <td><code>str</code></td>
 <td><code>#2ab1ac</code></td>
-<td>Hex color displayed in the flow graph</td>
+<td>Hex color in <code>#RRGGBB</code> format</td>
 </tr>
 </tbody>
 </table>
@@ -1687,13 +1687,13 @@
 <td><code>name</code></td>
 <td><code>str</code></td>
 <td>—</td>
-<td>Local target path in the library hierarchy (unique key)</td>
+<td>Library key / single directory name in the project library (must match <code>^[a-zA-Z0-9_]+$</code>; nested paths not supported)</td>
 </tr>
 <tr>
 <td><code>repository</code></td>
 <td><code>str</code></td>
 <td>—</td>
-<td>Git repository URL</td>
+<td>Git repository URL (non-empty)</td>
 </tr>
 <tr>
 <td><code>checkout</code></td>
@@ -1854,19 +1854,19 @@
 <td><code>inputs</code></td>
 <td><code>str \| list[str]</code></td>
 <td><code>[]</code></td>
-<td>Input dataset name(s)</td>
+<td>Input dataset name(s). <strong>Required</strong> for SQL recipes (min 1)</td>
 </tr>
 <tr>
 <td><code>outputs</code></td>
 <td><code>str \| list[str]</code></td>
-<td><code>[]</code></td>
-<td>Output dataset name(s)</td>
+<td>—</td>
+<td><strong>Required.</strong> Output dataset name(s) (min 1 element)</td>
 </tr>
 <tr>
 <td><code>zone</code></td>
 <td><code>str</code></td>
 <td>—</td>
-<td>Flow zone (Enterprise only)</td>
+<td>Flow zone (Enterprise only). Validated at plan time — must reference a known zone</td>
 </tr>
 </tbody>
 </table>

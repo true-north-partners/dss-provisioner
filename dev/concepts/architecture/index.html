@@ -1271,7 +1271,7 @@
 <h3 id="engine-dssengine">Engine (<code>DSSEngine</code>)<a class="headerlink" href="#engine-dssengine" title="Permanent link">&para;</a></h3>
 <p>The engine is the central orchestrator. It holds references to the provider, state, and handler registry. Its two main methods are:</p>
 <ul>
-<li><strong><code>plan()</code></strong> — Compares desired resources against current state. Optionally refreshes state first (default: yes). Returns a <code>Plan</code> containing a list of <code>ResourceChange</code> items, each with an action: <code>create</code>, <code>update</code>, <code>delete</code>, or <code>no-op</code>.</li>
+<li><strong><code>plan()</code></strong> — Compares desired resources against current state. Optionally refreshes state first (default: yes). Runs a validation pass that checks <code>depends_on</code> references and <code>zone</code> references before computing the diff. Returns a <code>Plan</code> containing a list of <code>ResourceChange</code> items, each with an action: <code>create</code>, <code>update</code>, <code>delete</code>, or <code>no-op</code>.</li>
 <li><strong><code>apply()</code></strong> — Executes a plan. Processes changes in topological order (respecting <code>depends_on</code> and inferred dependencies). Updates the state file after each successful operation. If a resource fails, the error is raised with a partial <code>ApplyResult</code> so you can see what succeeded.</li>
 </ul>
 <h3 id="state-file">State file<a class="headerlink" href="#state-file" title="Permanent link">&para;</a></h3>

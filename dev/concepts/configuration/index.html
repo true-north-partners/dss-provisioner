@@ -1291,10 +1291,16 @@
 </code></pre></div>
 <p>Validation catches:</p>
 <ul>
-<li>Missing required fields</li>
+<li>Missing required fields (e.g., recipe <code>outputs</code>, SQL recipe <code>inputs</code>)</li>
 <li>Invalid type discriminators</li>
-<li>Pydantic type/constraint errors</li>
+<li>Pydantic type/constraint errors (name pattern <code>^[a-zA-Z0-9_]+$</code>, non-empty strings, hex color format)</li>
 <li>Invalid YAML syntax</li>
+</ul>
+<p>At plan time, the engine additionally validates:</p>
+<ul>
+<li><code>depends_on</code> addresses reference known resources</li>
+<li><code>zone</code> references point to actual zone resources</li>
+<li><code>sql_query</code> recipes have at least one input that is a SQL-connection dataset</li>
 </ul>
 <p>See <a href="../../guides/yaml-config/">YAML configuration</a> for the full field reference.</p>
 
