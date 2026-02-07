@@ -16,6 +16,9 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.git_library import (
+    GitLibraryResource,  # noqa: TC001 — Pydantic needs this at runtime
+)
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     SQLQueryRecipeResource,
@@ -97,6 +100,7 @@ class Config(BaseModel):
     state_path: Path = Path(".dss-state.json")
     variables: VariablesResource | None = None
     zones: Annotated[list[ZoneResource], BeforeValidator(_none_to_list)] = []
+    libraries: Annotated[list[GitLibraryResource], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     config_dir: Path = Path()
@@ -105,7 +109,7 @@ class Config(BaseModel):
     @property
     def resources(self) -> list[Resource]:
         """All declared resources — ordering is not significant."""
-        resources: list[Resource] = [*self.zones, *self.datasets, *self.recipes]
+        resources: list[Resource] = [*self.zones, *self.libraries, *self.datasets, *self.recipes]
         if self.variables is not None:
             resources.append(self.variables)
         return resources

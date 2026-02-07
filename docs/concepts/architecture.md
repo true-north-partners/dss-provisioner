@@ -42,6 +42,7 @@ Handlers implement CRUD operations for each resource type. The engine delegates 
 
 - **VariablesHandler** — Reads and writes DSS project variables (singleton per project)
 - **ZoneHandler** — Creates, updates, reads, and deletes DSS flow zones
+- **GitLibraryHandler** — Creates, updates, reads, and deletes DSS Git library references
 - **DatasetHandler** — Creates, updates, reads, and deletes DSS datasets
 - **RecipeHandler** — Creates, updates, reads, and deletes DSS recipes
 

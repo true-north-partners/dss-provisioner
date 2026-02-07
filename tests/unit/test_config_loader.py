@@ -16,6 +16,7 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     RecipeResource,
@@ -251,3 +252,34 @@ class TestVariablesParsing:
         config = _parse("provider:\n  project: X\n")
         assert config.variables is None
         assert all(not isinstance(r, VariablesResource) for r in config.resources)
+
+
+class TestLibraryParsing:
+    def test_libraries_parsed_from_yaml(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nlibraries:\n"
+            "  - name: shared_utils\n"
+            "    repository: git@github.com:org/lib.git\n"
+            "    checkout: main\n"
+            "    path: python\n"
+        )
+        assert len(config.libraries) == 1
+        lib = config.libraries[0]
+        assert isinstance(lib, GitLibraryResource)
+        assert lib.name == "shared_utils"
+        assert lib.repository == "git@github.com:org/lib.git"
+        assert lib.checkout == "main"
+        assert lib.path == "python"
+
+    def test_libraries_included_in_resources(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nlibraries:\n"
+            "  - name: lib\n    repository: git@github.com:org/lib.git\n"
+        )
+        addrs = [r.address for r in config.resources]
+        assert "dss_git_library.lib" in addrs
+
+    def test_libraries_empty_when_omitted(self) -> None:
+        config = _parse("provider:\n  project: X\n")
+        assert config.libraries == []
+        assert all(not isinstance(r, GitLibraryResource) for r in config.resources)

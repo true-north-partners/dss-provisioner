@@ -31,6 +31,14 @@ Auto-generated API documentation for all resource types.
     options:
       show_bases: false
 
+## Git Libraries
+
+### GitLibraryResource
+
+::: dss_provisioner.resources.git_library.GitLibraryResource
+    options:
+      show_bases: false
+
 ## Datasets
 
 ### DatasetResource
