@@ -32,6 +32,7 @@ __all__ = [
     "plan",
     "plan_and_apply",
     "refresh",
+    "save_state",
 ]
 
 
@@ -77,18 +78,36 @@ def plan_and_apply(config: Config, *, destroy: bool = False, refresh: bool = Tru
     return apply(plan_obj, config)
 
 
-def refresh(config: Config) -> State:
-    """Refresh state from the live DSS instance."""
+def refresh(config: Config) -> tuple[list[ResourceChange], State]:
+    """Refresh state from DSS (single API call, not persisted).
+
+    Returns the list of drift changes and the new state. Call
+    :func:`save_state` to persist the returned state to disk.
+    """
     engine = _engine_from_config(config)
-    return engine.refresh(persist=True)
+    old_state = State.load_or_create(config.state_path, config.provider.project)
+    new_state = engine.refresh()
+    return _build_drift_changes(old_state, new_state), new_state
+
+
+def save_state(config: Config, state: State) -> None:
+    """Persist state to disk."""
+    from dss_provisioner.engine.lock import StateLock
+
+    with StateLock(config.state_path):
+        state.serial += 1
+        state.save(config.state_path)
 
 
 def drift(config: Config) -> list[ResourceChange]:
     """Detect drift between state file and live DSS."""
-    engine = _engine_from_config(config)
-    state = State.load_or_create(engine.state_path, config.provider.project)
-    old_attrs = {addr: inst.attributes.copy() for addr, inst in state.resources.items()}
-    new_state = engine.refresh()
+    changes, _ = refresh(config)
+    return changes
+
+
+def _build_drift_changes(old_state: State, new_state: State) -> list[ResourceChange]:
+    """Compare old vs new state and return a list of drift changes."""
+    old_attrs = {addr: inst.attributes.copy() for addr, inst in old_state.resources.items()}
     changes: list[ResourceChange] = []
     for addr, inst in new_state.resources.items():
         old = old_attrs.get(addr)
@@ -115,8 +134,8 @@ def drift(config: Config) -> list[ResourceChange]:
         changes.append(
             ResourceChange(
                 address=addr,
-                resource_type=state.resources[addr].resource_type
-                if addr in state.resources
+                resource_type=old_state.resources[addr].resource_type
+                if addr in old_state.resources
                 else "unknown",
                 action=Action.DELETE,
                 prior=old_attrs[addr],

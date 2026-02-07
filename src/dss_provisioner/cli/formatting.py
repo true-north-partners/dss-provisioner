@@ -107,12 +107,17 @@ def format_change(change: ResourceChange, *, color: bool = True) -> str:
     return "\n".join(lines)
 
 
-def format_plan(plan: Plan, *, color: bool = True) -> str:
-    """Render the full plan output with per-change diff blocks."""
-    blocks = [format_change(c, color=color) for c in plan.changes if c.action != Action.NOOP]
+def format_changes(changes: list[ResourceChange], *, color: bool = True) -> str:
+    """Render a list of changes as Terraform-style diff blocks."""
+    blocks = [format_change(c, color=color) for c in changes if c.action != Action.NOOP]
     if not blocks:
         return "No changes. Resources are up-to-date."
     return "\n\n".join(blocks)
+
+
+def format_plan(plan: Plan, *, color: bool = True) -> str:
+    """Render the full plan output with per-change diff blocks."""
+    return format_changes(plan.changes, color=color)
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +138,15 @@ def _format_summary(summary: dict[str, int], verbs: tuple[str, ...], *, color: b
         for n, verb, fg in zip(counts, verbs, _SUMMARY_COLORS, strict=True)
     ]
     return ", ".join(parts)
+
+
+def changes_summary(changes: list[ResourceChange]) -> dict[str, int]:
+    """Count changes by action type (create/update/delete)."""
+    summary: dict[str, int] = {"create": 0, "update": 0, "delete": 0}
+    for c in changes:
+        if c.action != Action.NOOP:
+            summary[c.action.value] += 1
+    return summary
 
 
 def format_plan_summary(summary: dict[str, int], *, color: bool = True) -> str:
