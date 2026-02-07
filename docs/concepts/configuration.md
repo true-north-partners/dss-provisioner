@@ -90,9 +90,15 @@ Configuration is valid.
 
 Validation catches:
 
-- Missing required fields
+- Missing required fields (e.g., recipe `outputs`, SQL recipe `inputs`)
 - Invalid type discriminators
-- Pydantic type/constraint errors
+- Pydantic type/constraint errors (name pattern, non-empty strings, hex color format)
 - Invalid YAML syntax
+- Resource name format (`^[a-zA-Z0-9_]+$` — letters, digits, underscores only)
+
+At plan time, the engine additionally validates:
+
+- `depends_on` addresses reference known resources
+- `zone` references point to actual zone resources
 
 See [YAML configuration](../guides/yaml-config.md) for the full field reference.

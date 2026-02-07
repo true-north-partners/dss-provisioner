@@ -133,7 +133,7 @@ scenarios:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | `variables` | Resource name (singleton — rarely overridden) |
+| `name` | string | `variables` | Resource name (singleton — rarely overridden). Must match `^[a-zA-Z0-9_]+$` |
 | `standard` | dict | `{}` | Standard project variables (shared across instances) |
 | `local` | dict | `{}` | Local project variables (instance-specific) |
 | `description` | string | `""` | Not used by DSS variables (ignored) |
@@ -148,7 +148,7 @@ Variables are always applied before other resource types due to their `plan_prio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Zone identifier (referenced by dataset/recipe `zone` field) |
+| `name` | string | — | **Required.** Zone identifier (must match `^[a-zA-Z0-9_]+$`) |
 | `color` | string | `#2ab1ac` | Hex color in `#RRGGBB` format |
 | `description` | string | `""` | Not used by DSS zones (ignored) |
 | `tags` | list | `[]` | Not used by DSS zones (ignored) |
@@ -161,13 +161,13 @@ Variables are always applied before other resource types due to their `plan_prio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Local target path in the library hierarchy |
-| `repository` | string | — | **Required.** Git repository URL |
+| `name` | string | — | **Required.** Local target path in the library hierarchy. Must match `^[a-zA-Z0-9_]+$` |
+| `repository` | string | — | **Required.** Git repository URL (non-empty) |
 | `checkout` | string | `main` | Branch, tag, or commit hash to check out |
 | `path` | string | `""` | Subpath within the Git repository |
 | `add_to_python_path` | bool | `true` | Add to `pythonPath` in `external-libraries.json` |
 | `description` | string | `""` | Not used by DSS libraries (ignored) |
-| `tags` | list | `[]` | Not used by DSS libraries (ignored) |
+| `tags` | list | `[]` | Not used by DSS libraries (ignored). Elements must be non-empty strings |
 | `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
 
 !!! note
@@ -179,25 +179,25 @@ Variables are always applied before other resource types due to their `plan_prio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Dataset name in DSS |
+| `name` | string | — | **Required.** Dataset name in DSS. Must match `^[a-zA-Z0-9_]+$` |
 | `type` | string | — | **Required.** One of: `snowflake`, `oracle`, `filesystem`, `upload` |
 | `connection` | string | — | DSS connection name |
 | `managed` | bool | `false` | Whether DSS manages the data lifecycle |
 | `format_type` | string | — | Storage format (`parquet`, `csv`, etc.) |
 | `format_params` | dict | `{}` | Format-specific parameters |
 | `columns` | list | `[]` | Schema column definitions |
-| `zone` | string | — | Flow zone (Enterprise only) |
+| `zone` | string | — | Flow zone (Enterprise only). Validated at plan time — must reference a known zone |
 | `description` | string | `""` | Dataset description (metadata) |
-| `tags` | list | `[]` | DSS tags |
-| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+| `tags` | list | `[]` | DSS tags. Elements must be non-empty strings |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses). Validated at plan time — each address must exist |
 
 ### Snowflake-specific fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `connection` | string | — | **Required.** Snowflake connection name |
-| `schema_name` | string | — | **Required.** Snowflake schema |
-| `table` | string | — | **Required.** Table name |
+| `schema_name` | string | — | **Required.** Snowflake schema (non-empty) |
+| `table` | string | — | **Required.** Table name (non-empty) |
 | `catalog` | string | — | Snowflake database/catalog |
 | `write_mode` | string | `OVERWRITE` | `OVERWRITE`, `APPEND`, or `TRUNCATE` |
 
@@ -206,15 +206,15 @@ Variables are always applied before other resource types due to their `plan_prio
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `connection` | string | — | **Required.** Oracle connection name |
-| `schema_name` | string | — | **Required.** Oracle schema |
-| `table` | string | — | **Required.** Table name |
+| `schema_name` | string | — | **Required.** Oracle schema (non-empty) |
+| `table` | string | — | **Required.** Table name (non-empty) |
 
 ### Filesystem-specific fields
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `connection` | string | — | **Required.** Filesystem connection name |
-| `path` | string | — | **Required.** File path (supports `${projectKey}`) |
+| `path` | string | — | **Required.** File path (non-empty, supports `${projectKey}`) |
 
 ### Upload-specific fields
 
@@ -226,14 +226,14 @@ Upload datasets have no additional required fields. They default to `managed: tr
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Recipe name in DSS |
+| `name` | string | — | **Required.** Recipe name in DSS. Must match `^[a-zA-Z0-9_]+$` |
 | `type` | string | — | **Required.** One of: `python`, `sql_query`, `sync` |
-| `inputs` | string or list | `[]` | Input dataset name(s) |
-| `outputs` | string or list | `[]` | Output dataset name(s) |
-| `zone` | string | — | Flow zone (Enterprise only) |
+| `inputs` | string or list | `[]` | Input dataset name(s). Elements must be non-empty. **Required** for `sql_query` (min 1) |
+| `outputs` | string or list | — | **Required.** Output dataset name(s) (min 1 element). Elements must be non-empty |
+| `zone` | string | — | Flow zone (Enterprise only). Validated at plan time — must reference a known zone |
 | `description` | string | `""` | Recipe description |
-| `tags` | list | `[]` | DSS tags |
-| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+| `tags` | list | `[]` | DSS tags. Elements must be non-empty strings |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses). Validated at plan time — each address must exist |
 
 !!! note
     `inputs` and `outputs` accept either a single string or a list of strings. A single string is automatically converted to a one-element list.
@@ -251,6 +251,7 @@ Upload datasets have no additional required fields. They default to `managed: tr
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `inputs` | string or list | — | **Required.** Input dataset name(s) (min 1 element, must reference SQL-type datasets) |
 | `code` | string | `""` | Inline SQL code |
 | `code_file` | string | — | Path to SQL file (relative to config file) |
 
@@ -264,7 +265,7 @@ Sync recipes have no additional fields beyond the common recipe fields.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Scenario name in DSS |
+| `name` | string | — | **Required.** Scenario name in DSS. Must match `^[a-zA-Z0-9_]+$` |
 | `type` | string | — | **Required.** One of: `step_based`, `python` |
 | `active` | bool | `true` | Whether the scenario is enabled |
 | `triggers` | list | `[]` | Trigger definitions (temporal, dataset change, etc.) |
@@ -292,10 +293,29 @@ Sync recipes have no additional fields beyond the common recipe fields.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | — | **Required.** Column name |
+| `name` | string | — | **Required.** Column name (non-empty) |
 | `type` | string | — | **Required.** One of: `string`, `int`, `bigint`, `float`, `double`, `boolean`, `date`, `array`, `object`, `map` |
 | `description` | string | `""` | Column description |
 | `meaning` | string | — | DSS column meaning |
+
+## Validation
+
+All resource names must match `^[a-zA-Z0-9_]+$` (letters, digits, and underscores only). This is enforced at config load time.
+
+Additional parse-time constraints:
+
+- **Tags**: each tag must be a non-empty string
+- **Recipe outputs**: at least one output is required
+- **SQL recipe inputs**: at least one input is required (must reference SQL-type datasets)
+- **Zone color**: must be a valid hex color in `#RRGGBB` format
+- **Snowflake/Oracle `schema_name` and `table`**: must be non-empty
+- **Filesystem `path`**: must be non-empty
+- **Git library `repository`**: must be non-empty
+
+At plan time, the engine additionally validates:
+
+- **`depends_on`** addresses must reference a known resource (in config or state)
+- **`zone`** references must point to a resource of type `dss_zone`
 
 ## Dependencies
 
