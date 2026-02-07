@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from dss_provisioner.engine.handlers import ResourceHandler
+from dss_provisioner.engine.handlers import PlanContext, ResourceHandler
 from dss_provisioner.engine.variables import get_variables, resolve_variables
 from dss_provisioner.resources.dataset import (
     DatasetResource,
@@ -143,6 +143,18 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         attrs.update(extract_dss_attrs(resource_cls, raw))
 
         return resolve_variables(attrs, self._get_variables(ctx))
+
+    def validate_plan(
+        self,
+        ctx: EngineContext,
+        desired: DatasetResource,
+        plan_ctx: PlanContext,
+    ) -> list[str]:
+        _ = ctx
+        errors: list[str] = []
+        if desired.zone is not None and plan_ctx.get_resource_type(desired.zone) != "dss_zone":
+            errors.append(f"Dataset '{desired.name}' references unknown zone '{desired.zone}'")
+        return errors
 
     def create(self, ctx: EngineContext, desired: DatasetResource) -> dict[str, Any]:
         """Create a dataset in DSS."""

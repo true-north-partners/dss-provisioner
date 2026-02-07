@@ -264,6 +264,13 @@ class DSSEngine:
                 for r in desired_by_addr.values():
                     reg = self._registry.get(r.resource_type)
                     errors.extend(reg.handler.validate_plan(ctx, r, plan_ctx))
+                # Check depends_on references
+                for r in desired_by_addr.values():
+                    for dep in r.depends_on:
+                        if not plan_ctx.address_exists(dep):
+                            errors.append(
+                                f"Resource '{r.address}' depends on unknown address '{dep}'"
+                            )
                 if errors:
                     raise ValidationError(errors)
 

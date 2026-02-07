@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from pydantic import Field
+
 from dss_provisioner.resources.base import Resource
 
 
@@ -15,4 +17,4 @@ class ZoneResource(Resource):
     """
 
     resource_type: ClassVar[str] = "dss_zone"
-    color: str = "#2ab1ac"
+    color: str = Field(default="#2ab1ac", pattern=r"^#[0-9A-Fa-f]{6}$")
