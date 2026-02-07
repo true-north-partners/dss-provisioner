@@ -82,6 +82,30 @@ recipes:
     outputs: customers_synced
     depends_on:
       - dss_python_recipe.clean_customers
+
+scenarios:
+  - name: daily_build
+    type: step_based
+    active: true
+    triggers:
+      - type: temporal
+        params:
+          frequency: Daily
+          hour: 2
+          minute: 0
+    steps:
+      - type: build_flowitem
+        name: Build all datasets
+        params:
+          builds:
+            - type: DATASET
+              itemId: customers_clean
+              partitionsSpec: ""
+
+  - name: e2e_test
+    type: python
+    active: false
+    code_file: ./scenarios/e2e_test.py
 ```
 
 ## Provider
@@ -103,6 +127,7 @@ recipes:
 | `libraries` | list | `[]` | Git library references (applied after variables, before datasets/recipes) |
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
+| `scenarios` | list | `[]` | Scenario resource definitions (applied after datasets/recipes) |
 
 ## Variables fields
 
@@ -232,6 +257,36 @@ Upload datasets have no additional required fields. They default to `managed: tr
 ### Sync-specific fields
 
 Sync recipes have no additional fields beyond the common recipe fields.
+
+## Scenario fields
+
+### Common fields (all types)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Scenario name in DSS |
+| `type` | string | — | **Required.** One of: `step_based`, `python` |
+| `active` | bool | `true` | Whether the scenario is enabled |
+| `triggers` | list | `[]` | Trigger definitions (temporal, dataset change, etc.) |
+| `description` | string | `""` | Scenario description |
+| `tags` | list | `[]` | DSS tags |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+!!! note
+    Triggers and steps are stored as raw dicts matching the DSS API format. The provisioner echoes your declared values on read to avoid false drift from auto-generated fields.
+
+### Step-based-specific fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `steps` | list | `[]` | Step definitions (build, run scenario, etc.) |
+
+### Python-specific fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `code` | string | `""` | Inline Python code |
+| `code_file` | string | — | Path to Python file (relative to config file) |
 
 ## Column definition
 

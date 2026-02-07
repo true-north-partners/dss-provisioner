@@ -1,4 +1,4 @@
-"""Code file loading and wrapper generation for recipe resources."""
+"""Code file loading and wrapper generation for code-bearing resources."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import textwrap
 from typing import TYPE_CHECKING
 
 from dss_provisioner.resources.recipe import PythonRecipeResource, SQLQueryRecipeResource
+from dss_provisioner.resources.scenario import PythonScenarioResource
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -14,30 +15,38 @@ if TYPE_CHECKING:
 
     from dss_provisioner.resources.base import Resource
 
-_CodeRecipe = PythonRecipeResource | SQLQueryRecipeResource
+_CodeResource = PythonRecipeResource | SQLQueryRecipeResource | PythonScenarioResource
 
 _CODE_EXTENSIONS: dict[str, str] = {
     "dss_python_recipe": ".py",
     "dss_sql_query_recipe": ".sql",
+    "dss_python_scenario": ".py",
+}
+
+_CODE_DIRS: dict[str, str] = {
+    "dss_python_recipe": "recipes",
+    "dss_sql_query_recipe": "recipes",
+    "dss_python_scenario": "scenarios",
 }
 
 
 def resolve_code_files(resources: Iterable[Resource], base_dir: Path) -> list[Resource]:
-    """Resolve ``code_file`` references and convention paths for recipe resources.
+    """Resolve ``code_file`` references and convention paths for code-bearing resources.
 
     For each resource with a ``code`` field:
 
     1. **Explicit code_file** — read ``base_dir / code_file``.
     2. **Convention** (no ``code_file``, empty ``code``) — try
-       ``base_dir / "recipes" / "{name}{ext}"``.
+       ``base_dir / "{dir}" / "{name}{ext}"`` where ``{dir}`` is type-dependent
+       (``recipes/`` for recipes, ``scenarios/`` for scenarios).
     3. **Already has code** — skip.
 
-    After reading, if ``code_wrapper`` is True (Python only), the raw file
+    After reading, if ``code_wrapper`` is True (Python recipes only), the raw file
     content is wrapped in DSS boilerplate.
     """
     result: list[Resource] = []
     for resource in resources:
-        if not isinstance(resource, PythonRecipeResource | SQLQueryRecipeResource):
+        if not isinstance(resource, _CodeResource):
             result.append(resource)
             continue
 
@@ -54,26 +63,27 @@ def resolve_code_files(resources: Iterable[Resource], base_dir: Path) -> list[Re
 # ---------------------------------------------------------------------------
 
 
-def _read_code(recipe: _CodeRecipe, base_dir: Path) -> str | None:
+def _read_code(resource: _CodeResource, base_dir: Path) -> str | None:
     """Read code from an explicit file, convention path, or return None to skip."""
-    if recipe.code_file:
-        return (base_dir / recipe.code_file).read_text()
+    if resource.code_file:
+        return (base_dir / resource.code_file).read_text()
 
-    if recipe.code:
+    if resource.code:
         return None  # already has inline code
 
-    ext = _CODE_EXTENSIONS.get(recipe.resource_type)
+    ext = _CODE_EXTENSIONS.get(resource.resource_type)
     if ext is None:
         return None
 
-    convention_path = base_dir / "recipes" / f"{recipe.name}{ext}"
+    code_dir = _CODE_DIRS.get(resource.resource_type, "recipes")
+    convention_path = base_dir / code_dir / f"{resource.name}{ext}"
     if convention_path.exists():
         return convention_path.read_text()
 
     return None
 
 
-def _maybe_wrap(recipe: _CodeRecipe, content: str) -> str:
+def _maybe_wrap(recipe: _CodeResource, content: str) -> str:
     """Apply DSS boilerplate wrapping if ``code_wrapper`` is set."""
     if not isinstance(recipe, PythonRecipeResource) or not recipe.code_wrapper:
         return content

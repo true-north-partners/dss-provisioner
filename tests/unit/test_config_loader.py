@@ -23,6 +23,10 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.scenario import (
+    PythonScenarioResource,
+    StepBasedScenarioResource,
+)
 from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
 
@@ -218,7 +222,7 @@ class TestConfigErrors:
             _parse("- item1\n- item2\n")
 
     def test_empty_sections(self) -> None:
-        config = _parse("provider:\n  project: X\nzones:\ndatasets:\nrecipes:\n")
+        config = _parse("provider:\n  project: X\nzones:\ndatasets:\nrecipes:\nscenarios:\n")
         assert config.resources == []
 
     def test_pydantic_validation_propagates(self) -> None:
@@ -283,3 +287,53 @@ class TestLibraryParsing:
         config = _parse("provider:\n  project: X\n")
         assert config.libraries == []
         assert all(not isinstance(r, GitLibraryResource) for r in config.resources)
+
+
+class TestScenarioParsing:
+    def test_step_scenarios_parsed_from_yaml(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nscenarios:\n"
+            "  - name: daily_build\n"
+            "    type: step_based\n"
+            "    active: true\n"
+            "    triggers:\n"
+            "      - type: temporal\n"
+            "        params:\n"
+            "          frequency: Daily\n"
+            "    steps:\n"
+            "      - type: build_flowitem\n"
+            "        name: Build all\n"
+        )
+        assert len(config.scenarios) == 1
+        s = config.scenarios[0]
+        assert isinstance(s, StepBasedScenarioResource)
+        assert s.name == "daily_build"
+        assert s.active is True
+        assert len(s.triggers) == 1
+        assert len(s.steps) == 1
+
+    def test_python_scenarios_parsed_from_yaml(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nscenarios:\n"
+            "  - name: e2e_test\n"
+            "    type: python\n"
+            "    code: \"print('hello')\"\n"
+        )
+        assert len(config.scenarios) == 1
+        s = config.scenarios[0]
+        assert isinstance(s, PythonScenarioResource)
+        assert s.type == "custom_python"
+        assert s.code == "print('hello')"
+
+    def test_scenarios_included_in_resources(self) -> None:
+        config = _parse("provider:\n  project: X\nscenarios:\n  - name: s1\n    type: step_based\n")
+        addrs = [r.address for r in config.resources]
+        assert "dss_step_scenario.s1" in addrs
+
+    def test_scenarios_empty_when_omitted(self) -> None:
+        config = _parse("provider:\n  project: X\n")
+        assert config.scenarios == []
+        assert all(
+            not isinstance(r, StepBasedScenarioResource | PythonScenarioResource)
+            for r in config.resources
+        )

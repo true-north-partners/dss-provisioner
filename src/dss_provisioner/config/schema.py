@@ -24,6 +24,11 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.scenario import (
+    PythonScenarioResource,
+    ScenarioResource,
+    StepBasedScenarioResource,
+)
 from dss_provisioner.resources.variables import (
     VariablesResource,  # noqa: TC001 — Pydantic needs this at runtime
 )
@@ -92,6 +97,12 @@ _RecipeEntry = Annotated[
     Discriminator("type"),
 ]
 
+_ScenarioEntry = Annotated[
+    StepBasedScenarioResource | PythonScenarioResource,
+    BeforeValidator(_type_normalizer(ScenarioResource)),
+    Discriminator("type"),
+]
+
 
 class Config(BaseModel):
     """Provisioning configuration — validates YAML structure directly."""
@@ -103,13 +114,20 @@ class Config(BaseModel):
     libraries: Annotated[list[GitLibraryResource], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
+    scenarios: Annotated[list[_ScenarioEntry], BeforeValidator(_none_to_list)] = []
     config_dir: Path = Path()
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def resources(self) -> list[Resource]:
         """All declared resources — ordering is not significant."""
-        resources: list[Resource] = [*self.zones, *self.libraries, *self.datasets, *self.recipes]
+        resources: list[Resource] = [
+            *self.zones,
+            *self.libraries,
+            *self.datasets,
+            *self.recipes,
+            *self.scenarios,
+        ]
         if self.variables is not None:
             resources.append(self.variables)
         return resources

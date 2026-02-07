@@ -16,6 +16,11 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.scenario import (
+    PythonScenarioResource,
+    ScenarioResource,
+    StepBasedScenarioResource,
+)
 from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
 
@@ -26,9 +31,12 @@ __all__ = [
     "GitLibraryResource",
     "OracleDatasetResource",
     "PythonRecipeResource",
+    "PythonScenarioResource",
     "RecipeResource",
     "SQLQueryRecipeResource",
+    "ScenarioResource",
     "SnowflakeDatasetResource",
+    "StepBasedScenarioResource",
     "SyncRecipeResource",
     "UploadDatasetResource",
     "VariablesResource",

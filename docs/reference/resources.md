@@ -100,3 +100,23 @@ Auto-generated API documentation for all resource types.
 ::: dss_provisioner.resources.recipe.SyncRecipeResource
     options:
       show_bases: false
+
+## Scenarios
+
+### ScenarioResource
+
+::: dss_provisioner.resources.scenario.ScenarioResource
+    options:
+      show_bases: false
+
+### StepBasedScenarioResource
+
+::: dss_provisioner.resources.scenario.StepBasedScenarioResource
+    options:
+      show_bases: false
+
+### PythonScenarioResource
+
+::: dss_provisioner.resources.scenario.PythonScenarioResource
+    options:
+      show_bases: false
