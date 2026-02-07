@@ -67,6 +67,8 @@ def mock_scenario(mock_project: MagicMock) -> MagicMock:
     type(settings).code = PropertyMock(return_value="")
     scenario.get_settings.return_value = settings
 
+    scenario.get_metadata.return_value = {"description": "", "tags": []}
+
     return scenario
 
 
@@ -117,6 +119,22 @@ class TestStepBasedCreate:
         assert result["type"] == "step_based"
         assert result["active"] is True
 
+    def test_applies_description_and_tags(
+        self,
+        ctx: EngineContext,
+        step_handler: StepBasedScenarioHandler,
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_scenario: MagicMock,
+    ) -> None:
+        desired = StepBasedScenarioResource(
+            name="daily_build", description="A build scenario", tags=["prod"]
+        )
+        step_handler.create(ctx, desired)
+
+        settings = mock_scenario.get_settings.return_value
+        assert settings.data["shortDesc"] == "A build scenario"
+        assert settings.data["tags"] == ["prod"]
+
 
 # ---------------------------------------------------------------------------
 # Step-based: Read
@@ -151,6 +169,35 @@ class TestStepBasedRead:
         assert result is not None
         assert result["active"] is False  # live from DSS
         assert result["steps"] == stored_steps  # echoed from prior
+
+    def test_reads_description_and_tags_live(
+        self,
+        ctx: EngineContext,
+        step_handler: StepBasedScenarioHandler,
+        mock_project: MagicMock,  # noqa: ARG002
+        mock_scenario: MagicMock,
+    ) -> None:
+        # DSS settings contain different description/tags than what was stored in prior.
+        settings = mock_scenario.get_settings.return_value
+        settings.data["shortDesc"] = "Changed in DSS"
+        settings.data["tags"] = ["new_tag"]
+
+        prior = ResourceInstance(
+            address="dss_step_scenario.daily_build",
+            resource_type="dss_step_scenario",
+            name="daily_build",
+            attributes={
+                "scenario_id": "daily_build",
+                "type": "step_based",
+                "description": "Original",
+                "tags": ["old_tag"],
+            },
+        )
+        result = step_handler.read(ctx, prior)
+
+        assert result is not None
+        assert result["description"] == "Changed in DSS"  # live from DSS
+        assert result["tags"] == ["new_tag"]  # live from DSS
 
     def test_returns_none_when_deleted(
         self,
@@ -261,11 +308,14 @@ class TestPythonCreate:
         mock_project: MagicMock,  # noqa: ARG002
         mock_scenario: MagicMock,
     ) -> None:
+        code_mock = PropertyMock(return_value="")
+        type(mock_scenario.get_settings.return_value).code = code_mock
+
         desired = PythonScenarioResource(name="e2e_test", code="print('test')")
         python_handler.create(ctx, desired)
 
-        settings = mock_scenario.get_settings.return_value
-        settings.__setattr__("code", "print('test')")
+        code_mock.assert_called_with("print('test')")
+        mock_scenario.get_settings.return_value.save.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -387,6 +437,8 @@ def _setup_scenario_engine(
     type(settings).active = PropertyMock(return_value=active)
     type(settings).code = PropertyMock(return_value=code)
     scenario.get_settings.return_value = settings
+
+    scenario.get_metadata.return_value = {"description": "", "tags": []}
 
     registry = ResourceTypeRegistry()
     registry.register(StepBasedScenarioResource, StepBasedScenarioHandler())

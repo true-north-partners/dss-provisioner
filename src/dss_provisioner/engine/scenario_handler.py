@@ -9,7 +9,7 @@ from dss_provisioner.engine.handlers import ResourceHandler
 
 if TYPE_CHECKING:
     from dataikuapi.dss.project import DSSProject
-    from dataikuapi.dss.scenario import DSSScenario
+    from dataikuapi.dss.scenario import DSSScenario, DSSScenarioSettings
 
     from dss_provisioner.core.state import ResourceInstance
     from dss_provisioner.engine.handlers import EngineContext
@@ -37,6 +37,13 @@ class ScenarioHandler(ResourceHandler[R]):
     def _get_scenario(self, ctx: EngineContext, scenario_id: str) -> DSSScenario:
         return self._get_project(ctx).get_scenario(scenario_id)
 
+    def _apply_common_settings(self, settings: DSSScenarioSettings, desired: R) -> None:
+        """Apply common scenario settings (active, triggers, description, tags)."""
+        settings.data["active"] = desired.active
+        settings.data["triggers"] = desired.triggers
+        settings.data["shortDesc"] = desired.description
+        settings.data["tags"] = list(desired.tags)
+
     # -- Hook methods (override in subclasses) --------------------------------
 
     def _scenario_type(self) -> str:
@@ -62,8 +69,7 @@ class ScenarioHandler(ResourceHandler[R]):
         project = self._get_project(ctx)
         scenario = project.create_scenario(desired.name, type=self._scenario_type())
         settings = scenario.get_settings()
-        settings.data["active"] = desired.active
-        settings.data["triggers"] = desired.triggers
+        self._apply_common_settings(settings, desired)
         self._apply_type_settings(settings, desired)
         settings.save()
         return {
@@ -89,8 +95,8 @@ class ScenarioHandler(ResourceHandler[R]):
             return None
         return {
             "name": prior.name,
-            "description": prior.attributes.get("description", ""),
-            "tags": prior.attributes.get("tags", []),
+            "description": settings.data.get("shortDesc", ""),
+            "tags": settings.data.get("tags", []),
             "type": prior.attributes.get("type", self._scenario_type()),
             "active": settings.active,
             "triggers": prior.attributes.get("triggers", []),
@@ -103,8 +109,7 @@ class ScenarioHandler(ResourceHandler[R]):
         scenario_id = prior.attributes["scenario_id"]
         scenario = self._get_scenario(ctx, scenario_id)
         settings = scenario.get_settings()
-        settings.data["active"] = desired.active
-        settings.data["triggers"] = desired.triggers
+        self._apply_common_settings(settings, desired)
         self._apply_type_settings(settings, desired)
         settings.save()
         return {
