@@ -8,10 +8,10 @@ Every resource has:
 
 | Field | Description |
 |---|---|
-| `name` | Unique name within the DSS project |
+| `name` | Unique name within the DSS project. Must match `^[a-zA-Z0-9_]+$` (letters, digits, underscores) |
 | `description` | Optional description (stored as DSS metadata) |
-| `tags` | Optional list of tags |
-| `depends_on` | Explicit dependencies on other resources |
+| `tags` | Optional list of tags (each element must be a non-empty string) |
+| `depends_on` | Explicit dependencies on other resources. Validated at plan time — each address must exist |
 | `address` | Computed as `{resource_type}.{name}` (e.g., `dss_filesystem_dataset.raw_data`) |
 
 The `address` is the primary key used in state tracking and plan output.
@@ -48,8 +48,8 @@ Zones partition a project's flow into logical sections (e.g. raw, curated, repor
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | — | Zone identifier (used by `zone` field on datasets/recipes) |
-| `color` | `str` | `#2ab1ac` | Hex color displayed in the flow graph |
+| `name` | `str` | — | Zone identifier (must match `^[a-zA-Z0-9_]+$`) |
+| `color` | `str` | `#2ab1ac` | Hex color in `#RRGGBB` format |
 
 ```yaml
 zones:
@@ -68,8 +68,8 @@ Git libraries import external Git repositories into a project's library, making 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | — | Local target path in the library hierarchy (unique key) |
-| `repository` | `str` | — | Git repository URL |
+| `name` | `str` | — | Library key / single directory name in the project library (must match `^[a-zA-Z0-9_]+$`; nested paths not supported) |
+| `repository` | `str` | — | Git repository URL (non-empty) |
 | `checkout` | `str` | `main` | Branch, tag, or commit hash |
 | `path` | `str` | `""` | Subpath within the Git repository |
 | `add_to_python_path` | `bool` | `true` | Add to `pythonPath` in `external-libraries.json` |
@@ -156,9 +156,9 @@ All recipes share common fields from `RecipeResource`:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `inputs` | `str \| list[str]` | `[]` | Input dataset name(s) |
-| `outputs` | `str \| list[str]` | `[]` | Output dataset name(s) |
-| `zone` | `str` | — | Flow zone (Enterprise only) |
+| `inputs` | `str \| list[str]` | `[]` | Input dataset name(s). **Required** for SQL recipes (min 1) |
+| `outputs` | `str \| list[str]` | — | **Required.** Output dataset name(s) (min 1 element) |
+| `zone` | `str` | — | Flow zone (Enterprise only). Validated at plan time — must reference a known zone |
 
 Recipe `inputs` and `outputs` create **implicit dependencies** — the engine automatically orders recipes after their input datasets.
 

@@ -22,7 +22,7 @@ YAML config ──► plan() ──► Plan (diff) ──► apply() ──► D
 
 The engine is the central orchestrator. It holds references to the provider, state, and handler registry. Its two main methods are:
 
-- **`plan()`** — Compares desired resources against current state. Optionally refreshes state first (default: yes). Returns a `Plan` containing a list of `ResourceChange` items, each with an action: `create`, `update`, `delete`, or `no-op`.
+- **`plan()`** — Compares desired resources against current state. Optionally refreshes state first (default: yes). Runs a validation pass that checks `depends_on` references and `zone` references before computing the diff. Returns a `Plan` containing a list of `ResourceChange` items, each with an action: `create`, `update`, `delete`, or `no-op`.
 - **`apply()`** — Executes a plan. Processes changes in topological order (respecting `depends_on` and inferred dependencies). Updates the state file after each successful operation. If a resource fails, the error is raised with a partial `ApplyResult` so you can see what succeeded.
 
 ### State file
