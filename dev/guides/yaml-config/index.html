@@ -1016,6 +1016,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scenario-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario fields
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scenario fields">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-fields-all-types_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common fields (all types)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-based-specific-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-based-specific fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-specific-fields_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python-specific fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#column-definition" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1510,6 +1560,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scenario-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario fields
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scenario fields">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-fields-all-types_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common fields (all types)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-based-specific-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step-based-specific fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-specific-fields_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python-specific fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#column-definition" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1662,6 +1762,30 @@
 <a id="__codelineno-1-62" name="__codelineno-1-62" href="#__codelineno-1-62"></a><span class="w">    </span><span class="nt">outputs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customers_synced</span>
 <a id="__codelineno-1-63" name="__codelineno-1-63" href="#__codelineno-1-63"></a><span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
 <a id="__codelineno-1-64" name="__codelineno-1-64" href="#__codelineno-1-64"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dss_python_recipe.clean_customers</span>
+<a id="__codelineno-1-65" name="__codelineno-1-65" href="#__codelineno-1-65"></a>
+<a id="__codelineno-1-66" name="__codelineno-1-66" href="#__codelineno-1-66"></a><span class="nt">scenarios</span><span class="p">:</span>
+<a id="__codelineno-1-67" name="__codelineno-1-67" href="#__codelineno-1-67"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">daily_build</span>
+<a id="__codelineno-1-68" name="__codelineno-1-68" href="#__codelineno-1-68"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">step_based</span>
+<a id="__codelineno-1-69" name="__codelineno-1-69" href="#__codelineno-1-69"></a><span class="w">    </span><span class="nt">active</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-1-70" name="__codelineno-1-70" href="#__codelineno-1-70"></a><span class="w">    </span><span class="nt">triggers</span><span class="p">:</span>
+<a id="__codelineno-1-71" name="__codelineno-1-71" href="#__codelineno-1-71"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">temporal</span>
+<a id="__codelineno-1-72" name="__codelineno-1-72" href="#__codelineno-1-72"></a><span class="w">        </span><span class="nt">params</span><span class="p">:</span>
+<a id="__codelineno-1-73" name="__codelineno-1-73" href="#__codelineno-1-73"></a><span class="w">          </span><span class="nt">frequency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Daily</span>
+<a id="__codelineno-1-74" name="__codelineno-1-74" href="#__codelineno-1-74"></a><span class="w">          </span><span class="nt">hour</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<a id="__codelineno-1-75" name="__codelineno-1-75" href="#__codelineno-1-75"></a><span class="w">          </span><span class="nt">minute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<a id="__codelineno-1-76" name="__codelineno-1-76" href="#__codelineno-1-76"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<a id="__codelineno-1-77" name="__codelineno-1-77" href="#__codelineno-1-77"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build_flowitem</span>
+<a id="__codelineno-1-78" name="__codelineno-1-78" href="#__codelineno-1-78"></a><span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Build all datasets</span>
+<a id="__codelineno-1-79" name="__codelineno-1-79" href="#__codelineno-1-79"></a><span class="w">        </span><span class="nt">params</span><span class="p">:</span>
+<a id="__codelineno-1-80" name="__codelineno-1-80" href="#__codelineno-1-80"></a><span class="w">          </span><span class="nt">builds</span><span class="p">:</span>
+<a id="__codelineno-1-81" name="__codelineno-1-81" href="#__codelineno-1-81"></a><span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DATASET</span>
+<a id="__codelineno-1-82" name="__codelineno-1-82" href="#__codelineno-1-82"></a><span class="w">              </span><span class="nt">itemId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">customers_clean</span>
+<a id="__codelineno-1-83" name="__codelineno-1-83" href="#__codelineno-1-83"></a><span class="w">              </span><span class="nt">partitionsSpec</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&quot;</span>
+<a id="__codelineno-1-84" name="__codelineno-1-84" href="#__codelineno-1-84"></a>
+<a id="__codelineno-1-85" name="__codelineno-1-85" href="#__codelineno-1-85"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">e2e_test</span>
+<a id="__codelineno-1-86" name="__codelineno-1-86" href="#__codelineno-1-86"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python</span>
+<a id="__codelineno-1-87" name="__codelineno-1-87" href="#__codelineno-1-87"></a><span class="w">    </span><span class="nt">active</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<a id="__codelineno-1-88" name="__codelineno-1-88" href="#__codelineno-1-88"></a><span class="w">    </span><span class="nt">code_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./scenarios/e2e_test.py</span>
 </code></pre></div>
 <h2 id="provider">Provider<a class="headerlink" href="#provider" title="Permanent link">&para;</a></h2>
 <table>
@@ -1750,6 +1874,12 @@
 <td>list</td>
 <td><code>[]</code></td>
 <td>Recipe resource definitions</td>
+</tr>
+<tr>
+<td><code>scenarios</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Scenario resource definitions (applied after datasets/recipes)</td>
 </tr>
 </tbody>
 </table>
@@ -2227,6 +2357,110 @@
 </table>
 <h3 id="sync-specific-fields">Sync-specific fields<a class="headerlink" href="#sync-specific-fields" title="Permanent link">&para;</a></h3>
 <p>Sync recipes have no additional fields beyond the common recipe fields.</p>
+<h2 id="scenario-fields">Scenario fields<a class="headerlink" href="#scenario-fields" title="Permanent link">&para;</a></h2>
+<h3 id="common-fields-all-types_2">Common fields (all types)<a class="headerlink" href="#common-fields-all-types_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>—</td>
+<td><strong>Required.</strong> Scenario name in DSS</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td>—</td>
+<td><strong>Required.</strong> One of: <code>step_based</code>, <code>python</code></td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Whether the scenario is enabled</td>
+</tr>
+<tr>
+<td><code>triggers</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Trigger definitions (temporal, dataset change, etc.)</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Scenario description</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>DSS tags</td>
+</tr>
+<tr>
+<td><code>depends_on</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Explicit resource dependencies (addresses)</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Triggers and steps are stored as raw dicts matching the DSS API format. The provisioner echoes your declared values on read to avoid false drift from auto-generated fields.</p>
+</div>
+<h3 id="step-based-specific-fields">Step-based-specific fields<a class="headerlink" href="#step-based-specific-fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steps</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Step definitions (build, run scenario, etc.)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="python-specific-fields_1">Python-specific fields<a class="headerlink" href="#python-specific-fields_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Inline Python code</td>
+</tr>
+<tr>
+<td><code>code_file</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to Python file (relative to config file)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="column-definition">Column definition<a class="headerlink" href="#column-definition" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
