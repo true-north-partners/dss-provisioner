@@ -4,6 +4,8 @@ from typing import ClassVar
 
 from pydantic import BaseModel, ConfigDict, computed_field
 
+from dss_provisioner.resources.markers import collect_refs
+
 
 class Resource(BaseModel):
     """Base class for all DSS resources.
@@ -24,8 +26,8 @@ class Resource(BaseModel):
     depends_on: list[str] = []
 
     def reference_names(self) -> list[str]:
-        """Names of other resources this one references (for auto-dependency inference)."""
-        return []
+        """Names of other resources this one references (auto-collected from Ref markers)."""
+        return collect_refs(self)
 
     @computed_field
     @property

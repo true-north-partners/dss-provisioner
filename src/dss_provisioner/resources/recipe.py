@@ -7,6 +7,7 @@ from typing import Annotated, ClassVar, Literal, Self
 from pydantic import BeforeValidator, Field, model_validator
 
 from dss_provisioner.resources.base import Resource
+from dss_provisioner.resources.markers import Ref
 
 
 def _coerce_str_to_list(v: str | list[str]) -> list[str]:
@@ -24,12 +25,9 @@ class RecipeResource(Resource):
     resource_type: ClassVar[str] = "dss_recipe"
 
     type: str
-    inputs: StrOrList = Field(default_factory=list)
-    outputs: StrOrList = Field(default_factory=list)
-    zone: str | None = None
-
-    def reference_names(self) -> list[str]:
-        return [*self.inputs, *self.outputs, *([self.zone] if self.zone else [])]
+    inputs: Annotated[StrOrList, Ref()] = Field(default_factory=list)
+    outputs: Annotated[StrOrList, Ref()] = Field(default_factory=list)
+    zone: Annotated[str | None, Ref("dss_zone")] = None
 
 
 class SyncRecipeResource(RecipeResource):
