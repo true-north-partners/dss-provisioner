@@ -49,6 +49,15 @@ class PlanContext:
         """Check if a resource with this name exists."""
         return name in self._by_name
 
+    def get_resource_type(self, name: str) -> str | None:
+        """Return the resource_type for a named resource, or None if not found."""
+        r = self._by_name.get(name)
+        if r is None:
+            return None
+        if isinstance(r, ResourceInstance):
+            return r.resource_type
+        return r.resource_type
+
     def get_attr(self, name: str, attr: str) -> Any:
         """Look up a resource attribute by name."""
         r = self._by_name.get(name)
