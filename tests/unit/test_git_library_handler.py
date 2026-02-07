@@ -221,6 +221,7 @@ class TestUpdate:
             address="dss_git_library.shared_utils",
             resource_type="dss_git_library",
             name="shared_utils",
+            attributes={"add_to_python_path": True},
         )
         handler.update(ctx, desired, prior)
 
@@ -264,10 +265,30 @@ class TestUpdate:
             address="dss_git_library.shared_utils",
             resource_type="dss_git_library",
             name="shared_utils",
+            attributes={"add_to_python_path": True},
         )
         result = handler.update(ctx, desired, prior)
 
         assert result["checkout"] == "v2.0"
+
+    def test_raises_when_add_to_python_path_changes(
+        self,
+        ctx: EngineContext,
+        handler: GitLibraryHandler,
+    ) -> None:
+        desired = GitLibraryResource(
+            name="shared_utils",
+            repository="git@github.com:org/lib.git",
+            add_to_python_path=False,
+        )
+        prior = ResourceInstance(
+            address="dss_git_library.shared_utils",
+            resource_type="dss_git_library",
+            name="shared_utils",
+            attributes={"add_to_python_path": True},
+        )
+        with pytest.raises(RuntimeError, match="Cannot change 'add_to_python_path'"):
+            handler.update(ctx, desired, prior)
 
 
 class TestDelete:

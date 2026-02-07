@@ -29,16 +29,12 @@ class TestGitLibraryResource:
             checkout="v1.2.3",
             path="python",
             add_to_python_path=False,
-            description="My library",
-            tags=["shared"],
         )
         assert r.name == "mylib"
         assert r.repository == "git@github.com:org/repo.git"
         assert r.checkout == "v1.2.3"
         assert r.path == "python"
         assert r.add_to_python_path is False
-        assert r.description == "My library"
-        assert r.tags == ["shared"]
 
     def test_extra_forbid(self) -> None:
         with pytest.raises(ValidationError, match="extra"):

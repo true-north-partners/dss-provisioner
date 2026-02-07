@@ -62,7 +62,14 @@ class GitLibraryHandler(ResourceHandler["GitLibraryResource"]):
     def update(
         self, ctx: EngineContext, desired: GitLibraryResource, prior: ResourceInstance
     ) -> dict[str, Any]:
-        _ = prior
+        current_python_path = prior.attributes.get("add_to_python_path", True)
+        if desired.add_to_python_path != current_python_path:
+            msg = (
+                f"Cannot change 'add_to_python_path' on library '{desired.name}' "
+                f"(from {current_python_path} to {desired.add_to_python_path}). "
+                f"Delete and recreate the library to change this setting."
+            )
+            raise RuntimeError(msg)
         git = self._get_git(ctx)
         git.set_library(
             git_reference_path=desired.name,
