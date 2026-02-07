@@ -143,11 +143,11 @@ class DSSEngine:
 
         return changed
 
-    def refresh(self) -> State:
+    def refresh(self, *, persist: bool = False) -> State:
         with StateLock(self._state_path):
             state = self._load_state()
             changed = self._refresh_state_in_place(state)
-            if changed:
+            if changed and persist:
                 state.serial += 1
                 state.save(self._state_path)
             return state

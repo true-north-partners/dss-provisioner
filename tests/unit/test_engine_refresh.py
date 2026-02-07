@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 from unittest.mock import MagicMock
 
 from dss_provisioner.core import DSSProvider, ResourceInstance
+from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
 from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
@@ -79,7 +80,7 @@ def test_refresh_updates_state_and_writes_backup(tmp_path: Path) -> None:
 
     # Simulate drift
     handler.store["dummy.r1"]["value"] = 99
-    state = engine.refresh()
+    state = engine.refresh(persist=True)
 
     assert state.serial == 2
     assert state.resources["dummy.r1"].attributes["value"] == 99
@@ -89,7 +90,25 @@ def test_refresh_updates_state_and_writes_backup(tmp_path: Path) -> None:
 
     # Simulate deletion out-of-band
     handler.store.pop("dummy.r1")
-    state2 = engine.refresh()
+    state2 = engine.refresh(persist=True)
 
     assert state2.serial == 3
     assert state2.resources == {}
+
+
+def test_refresh_no_persist_does_not_write(tmp_path: Path) -> None:
+    engine, handler = _engine(tmp_path)
+    r1 = DummyResource(name="r1", value=1)
+    engine.apply(engine.plan([r1]))
+
+    handler.store["dummy.r1"]["value"] = 99
+    state = engine.refresh()  # default: persist=False
+
+    # In-memory state reflects drift
+    assert state.resources["dummy.r1"].attributes["value"] == 99
+    assert state.serial == 1  # NOT bumped
+
+    # On-disk state unchanged
+    on_disk = State.load_or_create(engine.state_path, "PRJ")
+    assert on_disk.resources["dummy.r1"].attributes["value"] == 1
+    assert on_disk.serial == 1
