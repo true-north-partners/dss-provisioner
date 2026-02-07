@@ -149,9 +149,11 @@ def changes_summary(changes: list[ResourceChange]) -> dict[str, int]:
     return summary
 
 
-def format_plan_summary(summary: dict[str, int], *, color: bool = True) -> str:
+def format_plan_summary(
+    summary: dict[str, int], *, color: bool = True, header: str = "Plan"
+) -> str:
     """Render ``Plan: 2 to add, 1 to change, 0 to destroy.``"""
-    return f"Plan: {_format_summary(summary, _PLAN_VERBS, color=color)}."
+    return f"{header}: {_format_summary(summary, _PLAN_VERBS, color=color)}."
 
 
 def format_apply_summary(summary: dict[str, int], *, color: bool = True) -> str:

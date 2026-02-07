@@ -242,7 +242,7 @@ def refresh_cmd(
 
     typer.echo(format_changes(changes, color=color))
     typer.echo()
-    typer.echo(format_plan_summary(changes_summary(changes), color=color))
+    typer.echo(format_plan_summary(changes_summary(changes), color=color, header="Refresh"))
     typer.echo()
 
     if not auto_approve:

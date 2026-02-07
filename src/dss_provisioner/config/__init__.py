@@ -79,7 +79,7 @@ def plan_and_apply(config: Config, *, destroy: bool = False, refresh: bool = Tru
 
 
 def refresh(config: Config) -> tuple[list[ResourceChange], State]:
-    """Refresh state from DSS (single API call, not persisted).
+    """Refresh state from the live DSS instance (not persisted).
 
     Returns the list of drift changes and the new state. Call
     :func:`save_state` to persist the returned state to disk.

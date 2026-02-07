@@ -282,6 +282,7 @@ class TestRefreshCommand:
 
         result = runner.invoke(app, ["refresh", "--no-color", "--auto-approve"])
         assert "dss_dataset.raw" in result.stdout
+        assert "Refresh: " in result.stdout
         assert "1 to change" in result.stdout
 
 
