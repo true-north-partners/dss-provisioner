@@ -107,6 +107,46 @@ Libraries have `plan_priority: 10`, so they are applied after variables (0) but 
 !!! note
     `add_to_python_path` is a create-time-only field. Changing it after creation requires deleting and recreating the library. Credentials (SSH keys) are configured at the DSS instance level — no `login`/`password` fields are needed in the YAML config.
 
+## Managed folder resources
+
+Managed folders store arbitrary files (models, reports, artifacts) and are commonly used as recipe I/O. Unlike datasets, DSS accesses managed folders by an internal ID — the provisioner resolves names automatically.
+
+All managed folders share common fields from `ManagedFolderResource`:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `connection` | `str` | — | DSS connection name |
+| `zone` | `str` | — | Flow zone (Enterprise only) |
+
+Metadata (description/tags) is stored inside the managed folder settings, unlike datasets which use a separate metadata API.
+
+### Supported types
+
+| Type | YAML `type` | Extra required fields |
+|---|---|---|
+| Filesystem | `filesystem` | `connection`, `path` |
+| Upload | `upload` | — |
+
+#### Filesystem managed folders
+
+```yaml
+managed_folders:
+  - name: trained_models
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/models"
+```
+
+The `path` field supports DSS variable substitution — `${projectKey}` is resolved transparently during plan comparison.
+
+#### Upload managed folders
+
+```yaml
+managed_folders:
+  - name: reports
+    type: upload
+```
+
 ## Dataset resources
 
 All datasets share common fields from `DatasetResource`:

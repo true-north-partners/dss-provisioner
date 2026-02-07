@@ -18,6 +18,11 @@ from dss_provisioner.resources.dataset import (
     UploadDatasetResource,
 )
 from dss_provisioner.resources.git_library import GitLibraryResource
+from dss_provisioner.resources.managed_folder import (
+    FilesystemManagedFolderResource,
+    ManagedFolderResource,
+    UploadManagedFolderResource,
+)
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     RecipeResource,
@@ -223,7 +228,9 @@ class TestConfigErrors:
             _parse("- item1\n- item2\n")
 
     def test_empty_sections(self) -> None:
-        config = _parse("provider:\n  project: X\nzones:\ndatasets:\nrecipes:\nscenarios:\n")
+        config = _parse(
+            "provider:\n  project: X\nzones:\nmanaged_folders:\ndatasets:\nrecipes:\nscenarios:\n"
+        )
         assert config.resources == []
 
     def test_pydantic_validation_propagates(self) -> None:
@@ -368,3 +375,49 @@ class TestCodeEnvParsing:
     def test_invalid_field_rejected(self) -> None:
         with pytest.raises(ConfigError, match="extra"):
             _parse("provider:\n  project: X\ncode_envs:\n  bad_field: x\n")
+
+
+class TestManagedFolderParsing:
+    def test_filesystem_type(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nmanaged_folders:\n"
+            "  - name: models\n"
+            "    type: filesystem\n"
+            "    connection: filesystem_managed\n"
+            "    path: /data/models\n"
+        )
+        assert len(config.managed_folders) == 1
+        mf = config.managed_folders[0]
+        assert isinstance(mf, FilesystemManagedFolderResource)
+        assert mf.type == "Filesystem"
+        assert mf.connection == "filesystem_managed"
+        assert mf.path == "/data/models"
+
+    def test_upload_type(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nmanaged_folders:\n  - name: reports\n    type: upload\n"
+        )
+        assert len(config.managed_folders) == 1
+        mf = config.managed_folders[0]
+        assert isinstance(mf, UploadManagedFolderResource)
+        assert mf.type == "UploadedFiles"
+
+    def test_managed_folders_included_in_resources(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nmanaged_folders:\n  - name: models\n    type: upload\n"
+        )
+        addrs = [r.address for r in config.resources]
+        assert "dss_upload_managed_folder.models" in addrs
+
+    def test_managed_folders_empty_when_omitted(self) -> None:
+        config = _parse("provider:\n  project: X\n")
+        assert config.managed_folders == []
+        assert all(not isinstance(r, ManagedFolderResource) for r in config.resources)
+
+    def test_invalid_field_rejected(self) -> None:
+        with pytest.raises(ConfigError, match="extra"):
+            _parse(
+                "provider:\n  project: X\nmanaged_folders:\n"
+                "  - name: models\n    type: filesystem\n"
+                "    connection: c\n    path: /p\n    bad_field: x\n"
+            )
