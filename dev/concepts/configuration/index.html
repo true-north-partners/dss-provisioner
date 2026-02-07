@@ -1207,15 +1207,19 @@
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nt">state_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.dss-state.json</span><span class="w">         </span><span class="c1"># default</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="nt">zones</span><span class="p">:</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="c1"># type-specific fields</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="nt">recipes</span><span class="p">:</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="c1"># type-specific fields</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;#...&quot;</span><span class="w">                   </span><span class="c1"># optional hex color</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="nt">datasets</span><span class="p">:</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="c1"># type-specific fields</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="nt">recipes</span><span class="p">:</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="c1"># type-specific fields</span>
 </code></pre></div>
 <h2 id="provider-settings">Provider settings<a class="headerlink" href="#provider-settings" title="Permanent link">&para;</a></h2>
 <p>The <code>provider</code> block configures the DSS connection. All fields support environment variable fallbacks with the <code>DSS_</code> prefix:</p>
@@ -1256,7 +1260,7 @@
 <h2 id="state-path">State path<a class="headerlink" href="#state-path" title="Permanent link">&para;</a></h2>
 <p>The <code>state_path</code> field (default: <code>.dss-state.json</code>) controls where the state file is written. This file tracks deployed resources and should be committed to version control for team coordination.</p>
 <h2 id="type-discriminators">Type discriminators<a class="headerlink" href="#type-discriminators" title="Permanent link">&para;</a></h2>
-<p>Datasets and recipes use the <code>type</code> field as a discriminator for Pydantic's tagged union:</p>
+<p>Datasets and recipes use the <code>type</code> field as a discriminator for Pydantic's tagged union. Zones have no type discriminator — there is only one zone type.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">datasets</span><span class="p">:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_dataset</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">snowflake</span><span class="w">    </span><span class="c1"># selects SnowflakeDatasetResource</span>
