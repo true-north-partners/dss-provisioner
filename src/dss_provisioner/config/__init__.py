@@ -80,7 +80,7 @@ def plan_and_apply(config: Config, *, destroy: bool = False, refresh: bool = Tru
 def refresh(config: Config) -> State:
     """Refresh state from the live DSS instance."""
     engine = _engine_from_config(config)
-    return engine.refresh()
+    return engine.refresh(persist=True)
 
 
 def drift(config: Config) -> list[ResourceChange]:
