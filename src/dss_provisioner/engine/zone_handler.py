@@ -29,6 +29,7 @@ class ZoneHandler(ResourceHandler["ZoneResource"]):
             zones = flow.list_zones()
         except Exception:
             # Flow zones unavailable (e.g. DSS Free Edition returns 404).
+            logger.debug("flow.list_zones() unavailable — zones API may not be supported")
             return None
         for z in zones:
             if z.id == name:
@@ -86,6 +87,8 @@ class ZoneHandler(ResourceHandler["ZoneResource"]):
         flow = self._get_flow(ctx)
         zone = self._find_zone(flow, prior.name)
         if zone is None:
-            # Zone already gone or flow zones unavailable — nothing to do.
+            logger.debug(
+                "Zone '%s' already gone or zones API unavailable — skipping delete", prior.name
+            )
             return
         zone.delete()

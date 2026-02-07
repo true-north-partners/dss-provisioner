@@ -34,7 +34,7 @@ zones:
 ```
 
 !!! note
-    Flow zones require DSS Enterprise. On Free Edition the zone API returns 404 — `read` returns `None` (treated as externally deleted) and `create`/`update` raise a clear error.
+    Flow zones require DSS Enterprise. On Free Edition the zone API returns 404: `read` and `delete` degrade gracefully (return None / no-op), while `create` and `update` raise a clear `RuntimeError` since the zone cannot actually be provisioned.
 
 ## Dataset resources
 
