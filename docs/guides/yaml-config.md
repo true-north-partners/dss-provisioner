@@ -153,7 +153,7 @@ Variables are always applied before other resource types due to their `plan_prio
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | string | `code_envs` | Resource name (singleton — rarely overridden). Must match `^[a-zA-Z0-9_]+$` |
+| `name` | string | `code_envs` | Fixed singleton name (cannot be changed) |
 | `default_python` | string | — | Default Python code environment name (must exist on DSS instance) |
 | `default_r` | string | — | Default R code environment name (must exist on DSS instance) |
 | `description` | string | `""` | Not used by DSS code envs (ignored) |

@@ -48,7 +48,7 @@ The `code_envs` resource selects existing instance-level code environments as th
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name` | `str` | `code_envs` | Resource name (singleton — rarely overridden) |
+| `name` | `str` | `code_envs` | Fixed singleton name |
 | `default_python` | `str \| None` | `None` | Default Python code environment name |
 | `default_r` | `str \| None` | `None` | Default R code environment name |
 
