@@ -221,19 +221,38 @@ def destroy(
 @app.command(name="refresh")
 def refresh_cmd(
     config: ConfigPath = Path("dss-provisioner.yaml"),
+    auto_approve: AutoApprove = False,
     no_color: NoColor = False,
 ) -> None:
     """Refresh state from the live DSS instance."""
-    from dss_provisioner.config import load
+    from dss_provisioner.cli.formatting import changes_summary, format_changes, format_plan_summary
+    from dss_provisioner.config import load, save_state
     from dss_provisioner.config import refresh as refresh_fn
 
     color = _use_color(no_color)
     try:
         cfg = load(config)
-        state = refresh_fn(cfg)
+        changes, state = refresh_fn(cfg)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
 
+    if not changes:
+        typer.echo("No changes. State is up-to-date with DSS.")
+        raise typer.Exit(0)
+
+    typer.echo(format_changes(changes, color=color))
+    typer.echo()
+    typer.echo(format_plan_summary(changes_summary(changes), color=color, header="Refresh"))
+    typer.echo()
+
+    if not auto_approve:
+        try:
+            typer.confirm("Do you want to update the state file?", abort=True)
+        except typer.Abort as e:
+            typer.echo("Refresh canceled.", err=True)
+            raise typer.Exit(1) from e
+
+    save_state(cfg, state)
     count = len(state.resources)
     typer.echo(f"State refreshed. {count} resource{'s' if count != 1 else ''} tracked.")
 
@@ -244,7 +263,7 @@ def drift(
     no_color: NoColor = False,
 ) -> None:
     """Show drift between state and the live DSS instance."""
-    from dss_provisioner.cli.formatting import format_change
+    from dss_provisioner.cli.formatting import format_changes
     from dss_provisioner.config import drift as drift_fn
     from dss_provisioner.config import load
 
@@ -260,9 +279,7 @@ def drift(
         raise typer.Exit(0)
 
     typer.echo("Drift detected:\n")
-    for change in changes:
-        typer.echo(format_change(change, color=color))
-        typer.echo()
+    typer.echo(format_changes(changes, color=color))
 
 
 @app.command()

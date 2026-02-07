@@ -215,28 +215,75 @@ class TestDestroyCommand:
 
 
 class TestRefreshCommand:
+    _UPDATE_CHANGE = ResourceChange(
+        address="dss_dataset.raw",
+        resource_type="dss_dataset",
+        action=Action.UPDATE,
+        prior={"path": "/old"},
+        planned={"path": "/new"},
+        diff={"path": {"from": "/old", "to": "/new"}},
+    )
+
+    @staticmethod
+    def _mock_state(n: int) -> MagicMock:
+        state = MagicMock()
+        state.resources = {f"dss_dataset.r{i}": None for i in range(n)}
+        return state
+
+    @patch("dss_provisioner.config.save_state")
     @patch("dss_provisioner.config.refresh")
     @patch("dss_provisioner.config.load")
-    def test_outputs_resource_count(self, mock_load: MagicMock, mock_refresh: MagicMock) -> None:
+    def test_no_changes_exits_0(
+        self, mock_load: MagicMock, mock_refresh: MagicMock, mock_save: MagicMock
+    ) -> None:
         mock_load.return_value = _mock_config()
-        mock_state = MagicMock()
-        mock_state.resources = {"dss_dataset.a": None, "dss_dataset.b": None}
-        mock_refresh.return_value = mock_state
+        mock_refresh.return_value = ([], self._mock_state(2))
 
         result = runner.invoke(app, ["refresh", "--no-color"])
         assert result.exit_code == 0
-        assert "2 resources" in result.stdout
+        assert "up-to-date" in result.stdout
+        mock_save.assert_not_called()
 
+    @patch("dss_provisioner.config.save_state")
     @patch("dss_provisioner.config.refresh")
     @patch("dss_provisioner.config.load")
-    def test_single_resource_no_plural(self, mock_load: MagicMock, mock_refresh: MagicMock) -> None:
+    def test_auto_approve_skips_prompt(
+        self, mock_load: MagicMock, mock_refresh: MagicMock, mock_save: MagicMock
+    ) -> None:
         mock_load.return_value = _mock_config()
-        mock_state = MagicMock()
-        mock_state.resources = {"dss_dataset.a": None}
-        mock_refresh.return_value = mock_state
+        mock_refresh.return_value = ([self._UPDATE_CHANGE], self._mock_state(1))
 
-        result = runner.invoke(app, ["refresh", "--no-color"])
-        assert "1 resource " in result.stdout
+        result = runner.invoke(app, ["refresh", "--no-color", "--auto-approve"])
+        assert result.exit_code == 0
+        assert "State refreshed" in result.stdout
+        mock_save.assert_called_once()
+
+    @patch("dss_provisioner.config.save_state")
+    @patch("dss_provisioner.config.refresh")
+    @patch("dss_provisioner.config.load")
+    def test_user_decline_aborts(
+        self, mock_load: MagicMock, mock_refresh: MagicMock, mock_save: MagicMock
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_refresh.return_value = ([self._UPDATE_CHANGE], self._mock_state(1))
+
+        result = runner.invoke(app, ["refresh", "--no-color"], input="n\n")
+        assert result.exit_code == 1
+        mock_save.assert_not_called()
+
+    @patch("dss_provisioner.config.save_state")
+    @patch("dss_provisioner.config.refresh")
+    @patch("dss_provisioner.config.load")
+    def test_shows_drift_before_confirm(
+        self, mock_load: MagicMock, mock_refresh: MagicMock, _mock_save: MagicMock
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_refresh.return_value = ([self._UPDATE_CHANGE], self._mock_state(1))
+
+        result = runner.invoke(app, ["refresh", "--no-color", "--auto-approve"])
+        assert "dss_dataset.raw" in result.stdout
+        assert "Refresh: " in result.stdout
+        assert "1 to change" in result.stdout
 
 
 class TestDriftCommand:
