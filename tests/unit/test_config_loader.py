@@ -22,6 +22,7 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
 
 _FULL_YAML = """\
@@ -230,3 +231,23 @@ class TestConfigErrors:
     def test_default_state_path(self) -> None:
         config = _parse("provider:\n  project: TEST\n")
         assert str(config.state_path) == ".dss-state.json"
+
+
+class TestVariablesParsing:
+    def test_variables_parsed_from_yaml(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nvariables:\n  standard:\n    env: prod\n  local:\n    debug: 'false'\n"
+        )
+        assert isinstance(config.variables, VariablesResource)
+        assert config.variables.standard == {"env": "prod"}
+        assert config.variables.local == {"debug": "false"}
+
+    def test_variables_included_in_resources(self) -> None:
+        config = _parse("provider:\n  project: X\nvariables:\n  standard:\n    key: val\n")
+        addrs = [r.address for r in config.resources]
+        assert "dss_variables.variables" in addrs
+
+    def test_variables_none_when_omitted(self) -> None:
+        config = _parse("provider:\n  project: X\n")
+        assert config.variables is None
+        assert all(not isinstance(r, VariablesResource) for r in config.resources)

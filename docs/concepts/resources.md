@@ -16,6 +16,32 @@ Every resource has:
 
 The `address` is the primary key used in state tracking and plan output.
 
+## Variables resource
+
+The `variables` resource manages DSS project variables — a singleton key-value store per project. Variables are split into two scopes:
+
+- **`standard`**: shared across all instances
+- **`local`**: instance-specific overrides
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | `str` | `variables` | Resource name (singleton — rarely overridden) |
+| `standard` | `dict[str, Any]` | `{}` | Standard project variables |
+| `local` | `dict[str, Any]` | `{}` | Local project variables |
+
+```yaml
+variables:
+  standard:
+    env: prod
+    data_root: /mnt/data
+  local:
+    debug: "false"
+```
+
+Variables use **merge/partial semantics**: only declared keys are managed. Extra keys in DSS are left alone.
+
+Variables have `plan_priority: 0`, so they are always applied before other resources (zones, datasets, recipes all have priority 100). This ensures variables referenced via `${…}` in other resources are set before those resources are created.
+
 ## Zone resources
 
 Zones partition a project's flow into logical sections (e.g. raw, curated, reporting). They are provisioned **before** datasets and recipes so that resources can reference them via the `zone` field.

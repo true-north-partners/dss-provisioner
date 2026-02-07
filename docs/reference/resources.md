@@ -15,6 +15,14 @@ Auto-generated API documentation for all resource types.
         - address
         - reference_names
 
+## Variables
+
+### VariablesResource
+
+::: dss_provisioner.resources.variables.VariablesResource
+    options:
+      show_bases: false
+
 ## Zones
 
 ### ZoneResource

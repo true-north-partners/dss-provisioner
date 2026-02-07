@@ -17,6 +17,7 @@ class Resource(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     resource_type: ClassVar[str]
+    plan_priority: ClassVar[int] = 100
 
     name: str
     description: str = ""

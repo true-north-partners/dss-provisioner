@@ -9,6 +9,7 @@ from dss_provisioner.engine.recipe_handler import (
     SyncRecipeHandler,
 )
 from dss_provisioner.engine.registry import ResourceTypeRegistry
+from dss_provisioner.engine.variables_handler import VariablesHandler
 from dss_provisioner.engine.zone_handler import ZoneHandler
 from dss_provisioner.resources.dataset import (
     DatasetResource,
@@ -22,6 +23,7 @@ from dss_provisioner.resources.recipe import (
     SQLQueryRecipeResource,
     SyncRecipeResource,
 )
+from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
 
 
@@ -29,6 +31,7 @@ def default_registry() -> ResourceTypeRegistry:
     """Create a fresh registry with all built-in resource types and handlers."""
     registry = ResourceTypeRegistry()
 
+    registry.register(VariablesResource, VariablesHandler())
     registry.register(ZoneResource, ZoneHandler())
 
     dataset_handler = DatasetHandler()
