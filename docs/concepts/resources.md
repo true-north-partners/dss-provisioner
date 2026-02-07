@@ -205,6 +205,62 @@ recipes:
     outputs: customers_synced
 ```
 
+## Scenario resources
+
+Scenarios define automated workflows in DSS — triggers (when to run) and actions (what to do). They are provisioned **after** datasets and recipes (`plan_priority: 200`) since scenario steps often reference them.
+
+All scenarios share common fields from `ScenarioResource`:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `active` | `bool` | `true` | Whether the scenario is enabled |
+| `triggers` | `list[dict]` | `[]` | Trigger definitions (temporal, dataset change, etc.) |
+
+### Supported types
+
+| Type | YAML `type` | Extra fields |
+|---|---|---|
+| Step-based | `step_based` | `steps` |
+| Python | `python` | `code` or `code_file` |
+
+#### Step-based scenarios
+
+```yaml
+scenarios:
+  - name: daily_build
+    type: step_based
+    active: true
+    triggers:
+      - type: temporal
+        params:
+          frequency: Daily
+          hour: 2
+          minute: 0
+    steps:
+      - type: build_flowitem
+        name: Build all datasets
+        params:
+          builds:
+            - type: DATASET
+              itemId: my_dataset
+              partitionsSpec: ""
+```
+
+#### Python scenarios
+
+```yaml
+scenarios:
+  - name: e2e_test
+    type: python
+    active: false
+    code_file: ./scenarios/e2e_test.py
+```
+
+You can provide code inline or via `code_file`. If neither is set, the provisioner looks for `scenarios/{name}.py` by convention.
+
+!!! note
+    Triggers and steps use a **desired-echo** strategy: the provisioner stores your declared values and echoes them on read, rather than reading back from DSS. This avoids false drift from auto-generated fields that DSS adds internally.
+
 ## Columns
 
 Define schema columns on datasets:

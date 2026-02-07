@@ -9,6 +9,10 @@ from dss_provisioner.engine.recipe_handler import (
     SQLQueryRecipeHandler,
     SyncRecipeHandler,
 )
+from dss_provisioner.engine.scenario_handler import (
+    PythonScenarioHandler,
+    StepBasedScenarioHandler,
+)
 
 
 class TestDefaultRegistry:
@@ -30,9 +34,14 @@ class TestDefaultRegistry:
         assert isinstance(registry.get("dss_python_recipe").handler, PythonRecipeHandler)
         assert isinstance(registry.get("dss_sql_query_recipe").handler, SQLQueryRecipeHandler)
 
+    def test_all_scenario_types_registered(self) -> None:
+        registry = default_registry()
+        assert isinstance(registry.get("dss_step_scenario").handler, StepBasedScenarioHandler)
+        assert isinstance(registry.get("dss_python_scenario").handler, PythonScenarioHandler)
+
     def test_total_count(self) -> None:
         registry = default_registry()
-        assert len(registry._registrations) == 11
+        assert len(registry._registrations) == 13
 
     def test_independent_instances(self) -> None:
         r1 = default_registry()

@@ -10,6 +10,10 @@ from dss_provisioner.engine.recipe_handler import (
     SyncRecipeHandler,
 )
 from dss_provisioner.engine.registry import ResourceTypeRegistry
+from dss_provisioner.engine.scenario_handler import (
+    PythonScenarioHandler,
+    StepBasedScenarioHandler,
+)
 from dss_provisioner.engine.variables_handler import VariablesHandler
 from dss_provisioner.engine.zone_handler import ZoneHandler
 from dss_provisioner.resources.dataset import (
@@ -24,6 +28,10 @@ from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     SQLQueryRecipeResource,
     SyncRecipeResource,
+)
+from dss_provisioner.resources.scenario import (
+    PythonScenarioResource,
+    StepBasedScenarioResource,
 )
 from dss_provisioner.resources.variables import VariablesResource
 from dss_provisioner.resources.zone import ZoneResource
@@ -47,5 +55,8 @@ def default_registry() -> ResourceTypeRegistry:
     registry.register(SyncRecipeResource, SyncRecipeHandler())
     registry.register(PythonRecipeResource, PythonRecipeHandler())
     registry.register(SQLQueryRecipeResource, SQLQueryRecipeHandler())
+
+    registry.register(StepBasedScenarioResource, StepBasedScenarioHandler())
+    registry.register(PythonScenarioResource, PythonScenarioHandler())
 
     return registry

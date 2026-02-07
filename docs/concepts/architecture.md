@@ -45,6 +45,7 @@ Handlers implement CRUD operations for each resource type. The engine delegates 
 - **GitLibraryHandler** — Creates, updates, reads, and deletes DSS Git library references
 - **DatasetHandler** — Creates, updates, reads, and deletes DSS datasets
 - **RecipeHandler** — Creates, updates, reads, and deletes DSS recipes
+- **ScenarioHandler** — Creates, updates, reads, and deletes DSS scenarios (step-based and Python)
 
 ### Dependency graph
 
