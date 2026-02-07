@@ -39,6 +39,15 @@ class PlanContext:
         # Desired takes precedence over state.
         for r in all_desired.values():
             self._by_name[r.name] = r
+        self._all_addresses: set[str] = set(all_desired.keys()) | set(state.resources.keys())
+
+    def address_exists(self, address: str) -> bool:
+        """Check if an address exists in desired or state."""
+        return address in self._all_addresses
+
+    def has_resource(self, name: str) -> bool:
+        """Check if a resource with this name exists."""
+        return name in self._by_name
 
     def get_attr(self, name: str, attr: str) -> Any:
         """Look up a resource attribute by name."""

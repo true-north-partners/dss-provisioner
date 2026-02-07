@@ -178,7 +178,7 @@ class TestRecipeDiscrimination:
 
 class TestStringToListCoercion:
     def test_string_inputs_coerced(self) -> None:
-        r = RecipeResource(name="r", type="sync", inputs="single")  # type: ignore[arg-type]
+        r = RecipeResource(name="r", type="sync", inputs="single", outputs=["out"])  # type: ignore[arg-type]
         assert r.inputs == ["single"]
 
     def test_string_outputs_coerced(self) -> None:
@@ -186,7 +186,7 @@ class TestStringToListCoercion:
         assert r.outputs == ["single"]
 
     def test_list_unchanged(self) -> None:
-        r = RecipeResource(name="r", type="sync", inputs=["a", "b"])
+        r = RecipeResource(name="r", type="sync", inputs=["a", "b"], outputs=["out"])
         assert r.inputs == ["a", "b"]
 
     def test_yaml_string_coerced(self, full_config: Config) -> None:

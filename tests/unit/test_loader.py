@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
+from pydantic import ValidationError
 
 from dss_provisioner.resources.loader import (
     _find_entry_function,
@@ -218,20 +219,15 @@ class TestResolvePassthrough:
 
 
 class TestResolveErrors:
-    def test_wrapper_without_outputs_raises(self, tmp_path: Path) -> None:
-        (tmp_path / "recipes").mkdir()
-        code = "def f():\n    pass\n"
-        (tmp_path / "recipes" / "no_out.py").write_text(code)
-
-        r = PythonRecipeResource(
-            name="no_out",
-            code_file="recipes/no_out.py",
-            code_wrapper=True,
-            inputs=["in_ds"],
-            outputs=[],
-        )
-        with pytest.raises(ValueError, match="requires at least one output"):
-            resolve_code_files([r], tmp_path)
+    def test_wrapper_without_outputs_raises_at_parse_time(self) -> None:
+        with pytest.raises(ValidationError, match="outputs"):
+            PythonRecipeResource(
+                name="no_out",
+                code_file="recipes/no_out.py",
+                code_wrapper=True,
+                inputs=["in_ds"],
+                outputs=[],
+            )
 
     def test_wrapper_no_public_function_raises(self, tmp_path: Path) -> None:
         (tmp_path / "recipes").mkdir()

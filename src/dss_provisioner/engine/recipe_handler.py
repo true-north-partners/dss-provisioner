@@ -136,21 +136,17 @@ class RecipeHandler(ResourceHandler[R]):
 
     # -- Validation -----------------------------------------------------------
 
-    def validate(self, ctx: EngineContext, desired: R) -> list[str]:
-        _ = ctx
-        errors: list[str] = []
-        if not desired.outputs:
-            errors.append(f"Recipe '{desired.name}' requires at least one output dataset")
-        return errors
-
     def validate_plan(
         self,
         ctx: EngineContext,
         desired: R,
         plan_ctx: PlanContext,
     ) -> list[str]:
-        _ = ctx, desired, plan_ctx
-        return []
+        _ = ctx
+        errors: list[str] = []
+        if desired.zone is not None and not plan_ctx.has_resource(desired.zone):
+            errors.append(f"Recipe '{desired.name}' references unknown zone '{desired.zone}'")
+        return errors
 
     # -- CRUD -----------------------------------------------------------------
 
@@ -268,20 +264,13 @@ class SQLQueryRecipeHandler(RecipeHandler["SQLQueryRecipeResource"]):
         _ = raw_def
         return _apply_code_payload(settings, desired.code, creating=creating)
 
-    def validate(self, ctx: EngineContext, desired: SQLQueryRecipeResource) -> list[str]:
-        errors = super().validate(ctx, desired)
-        if not desired.inputs:
-            errors.append(f"SQL query recipe '{desired.name}' requires at least one input dataset")
-        return errors
-
     def validate_plan(
         self,
         ctx: EngineContext,
         desired: SQLQueryRecipeResource,
         plan_ctx: PlanContext,
     ) -> list[str]:
-        _ = ctx
-        errors: list[str] = []
+        errors = super().validate_plan(ctx, desired, plan_ctx)
 
         if not any(
             plan_ctx.get_attr(ref, "type") in DatasetResource.sql_types for ref in desired.inputs

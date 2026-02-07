@@ -1,8 +1,8 @@
 """Base resource class for DSS resources."""
 
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from dss_provisioner.resources.markers import collect_refs
 
@@ -19,9 +19,9 @@ class Resource(BaseModel):
     resource_type: ClassVar[str]
     plan_priority: ClassVar[int] = 100
 
-    name: str
+    name: str = Field(pattern=r"^[a-zA-Z0-9_]+$")
     description: str = ""
-    tags: list[str] = []
+    tags: list[Annotated[str, Field(min_length=1)]] = []
 
     # Lifecycle
     depends_on: list[str] = []

@@ -13,7 +13,7 @@ from dss_provisioner.resources.markers import Compare, DSSParam, Ref, build_dss_
 class Column(BaseModel):
     """A column in a dataset schema."""
 
-    name: str
+    name: str = Field(min_length=1)
     type: Literal[
         "string",
         "int",
@@ -59,8 +59,8 @@ class SnowflakeDatasetResource(DatasetResource):
 
     type: Literal["Snowflake"] = "Snowflake"
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
-    schema_name: Annotated[str, DSSParam("params.schema")]
-    table: Annotated[str, DSSParam("params.table")]
+    schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
+    table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
     catalog: Annotated[str | None, DSSParam("params.catalog")] = None
     write_mode: Annotated[
         Literal["OVERWRITE", "APPEND", "TRUNCATE"], DSSParam("params.writeMode")
@@ -75,8 +75,8 @@ class OracleDatasetResource(DatasetResource):
 
     type: Literal["Oracle"] = "Oracle"
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
-    schema_name: Annotated[str, DSSParam("params.schema")]
-    table: Annotated[str, DSSParam("params.table")]
+    schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
+    table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
 
 
 class FilesystemDatasetResource(DatasetResource):
@@ -87,7 +87,7 @@ class FilesystemDatasetResource(DatasetResource):
 
     type: Literal["Filesystem"] = "Filesystem"
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
-    path: Annotated[str, DSSParam("params.path")]
+    path: Annotated[str, DSSParam("params.path")] = Field(min_length=1)
 
 
 class UploadDatasetResource(DatasetResource):

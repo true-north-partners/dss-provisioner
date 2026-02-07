@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from pydantic import Field
+
 from dss_provisioner.resources.base import Resource
 
 
@@ -18,7 +20,7 @@ class GitLibraryResource(Resource):
     plan_priority: ClassVar[int] = 10
 
     name: str
-    repository: str
+    repository: str = Field(min_length=1)
     checkout: str = "main"
     path: str = ""
     add_to_python_path: bool = True

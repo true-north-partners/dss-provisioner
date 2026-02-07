@@ -150,7 +150,7 @@ class TestCreatePythonRecipe:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = PythonRecipeResource(name="my_py", code="print('hello')")
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code="print('hello')")
         python_handler.create(ctx, desired)
         mock_recipe.get_settings.return_value.set_payload.assert_called_with("print('hello')")
         mock_recipe.get_settings.return_value.save.assert_called()
@@ -165,7 +165,7 @@ class TestCreatePythonRecipe:
         raw_def: dict[str, Any] = {"type": "python", "params": {}}
         mock_recipe.get_settings.return_value.get_recipe_raw_definition.return_value = raw_def
 
-        desired = PythonRecipeResource(name="my_py", code="x=1", code_env="py39")
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code="x=1", code_env="py39")
         python_handler.create(ctx, desired)
 
         assert raw_def["params"]["envSelection"] == {
@@ -180,7 +180,7 @@ class TestCreatePythonRecipe:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = PythonRecipeResource(name="my_py")
+        desired = PythonRecipeResource(name="my_py", outputs=["out"])
         python_handler.create(ctx, desired)
         mock_recipe.get_settings.return_value.set_payload.assert_not_called()
 
@@ -193,7 +193,9 @@ class TestCreateSQLQueryRecipe:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = SQLQueryRecipeResource(name="my_sql", code="SELECT 1")
+        desired = SQLQueryRecipeResource(
+            name="my_sql", inputs=["in_ds"], outputs=["out"], code="SELECT 1"
+        )
         sql_handler.create(ctx, desired)
         mock_recipe.get_settings.return_value.set_payload.assert_called_with("SELECT 1")
         mock_recipe.get_settings.return_value.save.assert_called()
@@ -207,7 +209,9 @@ class TestCreateSetsMetadata:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = SyncRecipeResource(name="my_sync", description="A sync recipe", tags=["etl"])
+        desired = SyncRecipeResource(
+            name="my_sync", outputs=["out"], description="A sync recipe", tags=["etl"]
+        )
         sync_handler.create(ctx, desired)
 
         meta = mock_recipe.get_metadata.return_value
@@ -224,7 +228,7 @@ class TestCreateSetsZone:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = SyncRecipeResource(name="my_sync", zone="raw")
+        desired = SyncRecipeResource(name="my_sync", outputs=["out"], zone="raw")
         sync_handler.create(ctx, desired)
         mock_recipe.move_to_zone.assert_called_once_with("raw")
 
@@ -235,7 +239,7 @@ class TestCreateSetsZone:
         mock_project: MagicMock,  # noqa: ARG002
         mock_recipe: MagicMock,
     ) -> None:
-        desired = SyncRecipeResource(name="my_sync")
+        desired = SyncRecipeResource(name="my_sync", outputs=["out"])
         sync_handler.create(ctx, desired)
         mock_recipe.move_to_zone.assert_not_called()
 
@@ -413,7 +417,7 @@ class TestUpdate:
         raw_def: dict[str, Any] = {"type": "python", "params": {}}
         mock_recipe.get_settings.return_value.get_recipe_raw_definition.return_value = raw_def
 
-        desired = PythonRecipeResource(name="my_py", code="new code")
+        desired = PythonRecipeResource(name="my_py", outputs=["out"], code="new code")
         prior = ResourceInstance(
             address="dss_python_recipe.my_py",
             resource_type="dss_python_recipe",
@@ -432,7 +436,9 @@ class TestUpdate:
         raw_def: dict[str, Any] = {"type": "sql_query", "params": {}}
         mock_recipe.get_settings.return_value.get_recipe_raw_definition.return_value = raw_def
 
-        desired = SQLQueryRecipeResource(name="my_sql", code="SELECT 2")
+        desired = SQLQueryRecipeResource(
+            name="my_sql", inputs=["in_ds"], outputs=["out"], code="SELECT 2"
+        )
         prior = ResourceInstance(
             address="dss_sql_query_recipe.my_sql",
             resource_type="dss_sql_query_recipe",
@@ -451,7 +457,7 @@ class TestUpdate:
         raw_def: dict[str, Any] = {"type": "sync", "params": {}}
         mock_recipe.get_settings.return_value.get_recipe_raw_definition.return_value = raw_def
 
-        desired = SyncRecipeResource(name="my_sync")
+        desired = SyncRecipeResource(name="my_sync", outputs=["out"])
         prior = ResourceInstance(
             address="dss_sync_recipe.my_sync",
             resource_type="dss_sync_recipe",
@@ -486,50 +492,6 @@ class TestDelete:
 # ---------------------------------------------------------------------------
 # Validation tests
 # ---------------------------------------------------------------------------
-
-
-class TestValidateRequiresOutput:
-    def test_base_handler_rejects_empty_outputs(
-        self,
-        ctx: EngineContext,
-        handler: RecipeHandler,
-    ) -> None:
-        desired = SyncRecipeResource(name="my_sync", inputs=["ds_a"])
-        errors = handler.validate(ctx, desired)
-        assert len(errors) == 1
-        assert "requires at least one output" in errors[0]
-
-    def test_base_handler_accepts_with_output(
-        self,
-        ctx: EngineContext,
-        handler: RecipeHandler,
-    ) -> None:
-        desired = SyncRecipeResource(name="my_sync", outputs=["ds_b"])
-        errors = handler.validate(ctx, desired)
-        assert errors == []
-
-
-class TestValidateSQLRequiresInput:
-    def test_sql_handler_rejects_empty_inputs(
-        self,
-        ctx: EngineContext,
-        sql_handler: SQLQueryRecipeHandler,
-    ) -> None:
-        desired = SQLQueryRecipeResource(name="my_sql", outputs=["out_ds"], code="SELECT 1")
-        errors = sql_handler.validate(ctx, desired)
-        assert len(errors) == 1
-        assert "requires at least one input" in errors[0]
-
-    def test_sql_handler_accepts_with_input(
-        self,
-        ctx: EngineContext,
-        sql_handler: SQLQueryRecipeHandler,
-    ) -> None:
-        desired = SQLQueryRecipeResource(
-            name="my_sql", inputs=["in_ds"], outputs=["out_ds"], code="SELECT 1"
-        )
-        errors = sql_handler.validate(ctx, desired)
-        assert errors == []
 
 
 class TestValidatePlanSQLInput:
