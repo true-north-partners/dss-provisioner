@@ -798,6 +798,8 @@
       
         
       
+        
+      
     
     
     
@@ -895,6 +897,34 @@
     
   
     YAML configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing modules
   
 
     
@@ -1262,7 +1292,7 @@
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>              State file ◄──────────────────────────── Updated state
 </code></pre></div>
 <ol>
-<li><strong>Load</strong> — Parse <code>dss-provisioner.yaml</code> into a validated <code>Config</code> object</li>
+<li><strong>Load</strong> — Parse <code>dss-provisioner.yaml</code> into a validated <code>Config</code> object. If <code>modules:</code> are defined, expand them into resources at this stage</li>
 <li><strong>Refresh</strong> — Read live DSS state for each tracked resource, update the state file</li>
 <li><strong>Plan</strong> — Compare desired resources against state, produce a <code>Plan</code> of <code>ResourceChange</code> items</li>
 <li><strong>Apply</strong> — Execute the plan in dependency order, updating state after each resource</li>
