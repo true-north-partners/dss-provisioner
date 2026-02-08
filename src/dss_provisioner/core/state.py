@@ -102,7 +102,7 @@ class State(BaseModel):
     @classmethod
     def load(cls, path: Path) -> "State":
         """Load state from a JSON file."""
-        state = cls.model_validate_json(path.read_text())
+        state = cls.model_validate_json(path.read_text(encoding="utf-8"))
         logger.debug("State loaded from %s", path)
         return state
 
