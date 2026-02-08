@@ -284,6 +284,15 @@ class TestZoneReferenceValidation:
         plan = engine.plan([ds, z], refresh=False)
         assert len(plan.changes) == 2
 
+    def test_dataset_zone_accepted_with_cross_namespace_name_collision(
+        self, tmp_path: Path
+    ) -> None:
+        engine = _engine(tmp_path)
+        z = ZoneResource(name="raw")
+        ds = FilesystemDatasetResource(name="raw", connection="conn", path="/data", zone="raw")
+        plan = engine.plan([ds, z], refresh=False)
+        assert [c.address for c in plan.changes] == ["dss_zone.raw", "dss_filesystem_dataset.raw"]
+
     def test_recipe_unknown_zone_rejected(self, tmp_path: Path) -> None:
         engine = _engine(tmp_path)
         r = SyncRecipeResource(name="r", outputs=["out"], zone="nonexistent")

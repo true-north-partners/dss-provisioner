@@ -147,7 +147,9 @@ class RecipeHandler(ResourceHandler[R]):
     ) -> list[str]:
         _ = ctx
         errors: list[str] = []
-        if desired.zone is not None and plan_ctx.get_resource_type(desired.zone) != "dss_zone":
+        if desired.zone is not None and not plan_ctx.has_resource(
+            desired.zone, resource_type="dss_zone"
+        ):
             errors.append(f"Recipe '{desired.name}' references unknown zone '{desired.zone}'")
         return errors
 
@@ -297,7 +299,9 @@ class SQLQueryRecipeHandler(RecipeHandler["SQLQueryRecipeResource"]):
         errors = super().validate_plan(ctx, desired, plan_ctx)
 
         if not any(
-            plan_ctx.get_attr(ref, "type") in DatasetResource.sql_types for ref in desired.inputs
+            plan_ctx.get_attr(ref, "type", resource_type_suffix="_dataset")
+            in DatasetResource.sql_types
+            for ref in desired.inputs
         ):
             errors.append(
                 f"SQL query recipe '{desired.name}' requires at least one input "

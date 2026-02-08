@@ -25,6 +25,14 @@ M = TypeVar("M")
 CompareStrategy: TypeAlias = Literal["partial", "exact", "set"]
 
 
+@dataclass(frozen=True, slots=True)
+class ResourceRef:
+    """Resolved reference value extracted from a ``Ref``-annotated field."""
+
+    name: str
+    resource_type: str | None = None
+
+
 # ── Marker dataclasses ──────────────────────────────────────────────
 
 
@@ -110,13 +118,20 @@ def _coerce_to_list(value: Any) -> list[str]:
 # ── Public helpers ──────────────────────────────────────────────────
 
 
+def collect_ref_specs(resource: Any) -> list[ResourceRef]:
+    """Collect typed references from ``Ref``-annotated fields."""
+    refs: list[ResourceRef] = []
+    for name, _, marker in _iter_marked_fields(resource, Ref):
+        refs.extend(
+            ResourceRef(name=ref, resource_type=marker.resource_type)
+            for ref in _coerce_to_list(getattr(resource, name))
+        )
+    return refs
+
+
 def collect_refs(resource: Any) -> list[str]:
     """Collect reference names from ``Ref``-annotated fields."""
-    return [
-        ref
-        for name, _, _ in _iter_marked_fields(resource, Ref)
-        for ref in _coerce_to_list(getattr(resource, name))
-    ]
+    return [ref.name for ref in collect_ref_specs(resource)]
 
 
 def collect_compare_strategies(resource_or_cls: Any) -> dict[str, CompareStrategy]:
