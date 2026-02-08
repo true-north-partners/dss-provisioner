@@ -81,7 +81,7 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
         try:
             zone = folder.get_zone()
         except Exception:
-            logger.debug("Zone read unavailable for managed folder %s", folder.id)
+            logger.debug("Zone read unavailable for managed folder %s", folder.id, exc_info=True)
             return None
         zone_id = zone.id
         if zone_id == "default":

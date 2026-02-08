@@ -75,7 +75,7 @@ class RecipeHandler(ResourceHandler[R]):
                             return None
                         return zone_id
         except Exception:
-            logger.debug("Zone read unavailable for recipe %s", recipe_name)
+            logger.debug("Zone read unavailable for recipe %s", recipe_name, exc_info=True)
             return None
         return None
 

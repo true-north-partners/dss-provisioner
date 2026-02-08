@@ -101,7 +101,9 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         try:
             zone = dataset.get_zone()
         except Exception:
-            logger.debug("Zone read unavailable for dataset %s", dataset.dataset_name)
+            logger.debug(
+                "Zone read unavailable for dataset %s", dataset.dataset_name, exc_info=True
+            )
             return None
         zone_id = zone.id
         # The default zone has a well-known id; treat it as "no zone".
