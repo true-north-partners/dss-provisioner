@@ -31,6 +31,7 @@ from dss_provisioner.engine.operations import (
 )
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
 from dss_provisioner.engine.variables import get_variables, resolve_variables
+from dss_provisioner.resources.markers import CompareStrategy, collect_compare_strategies
 
 logger = logging.getLogger(__name__)
 
@@ -46,14 +47,27 @@ if TYPE_CHECKING:
     from dss_provisioner.resources.base import Resource
 
 
-def _values_differ(desired: Any, prior: Any) -> bool:
+def _values_differ(
+    desired: Any,
+    prior: Any,
+    *,
+    strategy: CompareStrategy | None = None,
+) -> bool:
     """Check whether a desired value differs from the prior (stored) value.
 
     For dict values, only keys present in *desired* are compared — extra keys
     added by the provider (e.g. DSS default expansion) are ignored.
     """
+    if strategy == "set":
+        if isinstance(desired, list) and isinstance(prior, list):
+            return set(desired) != set(prior)
+        return desired != prior
+
+    if strategy == "exact":
+        return desired != prior
+
     if isinstance(desired, dict) and isinstance(prior, dict):
-        return any(_values_differ(v, prior.get(k)) for k, v in desired.items())
+        return any(_values_differ(v, prior.get(k), strategy="partial") for k, v in desired.items())
     return desired != prior
 
 
@@ -206,10 +220,11 @@ class DSSEngine:
             )
 
         prior = dict(prior_inst.attributes)
+        compare_strategies = collect_compare_strategies(resource)
         diff = {
             k: {"from": prior.get(k), "to": v}
             for k, v in resolved_planned.items()
-            if _values_differ(v, prior.get(k))
+            if _values_differ(v, prior.get(k), strategy=compare_strategies.get(k))
         }
 
         action = Action.UPDATE if diff else Action.NOOP

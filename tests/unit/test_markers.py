@@ -13,9 +13,11 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
 )
 from dss_provisioner.resources.markers import (
+    Compare,
     DSSParam,
     Ref,
     build_dss_params,
+    collect_compare_strategies,
     collect_refs,
     extract_dss_attrs,
 )
@@ -157,6 +159,19 @@ class TestBuildDssParams:
 
         m = M()
         assert build_dss_params(m) == {"connection": "conn"}
+
+
+class TestCollectCompareStrategies:
+    def test_collects_marked_fields(self) -> None:
+        class M(BaseModel):
+            tags: Annotated[list[str], Compare("set")] = Field(default_factory=list)
+            config: Annotated[dict[str, Any], Compare("partial")] = Field(default_factory=dict)
+            name: str = ""
+
+        assert collect_compare_strategies(M) == {"tags": "set", "config": "partial"}
+
+    def test_resource_tags_use_set_strategy(self) -> None:
+        assert collect_compare_strategies(DatasetResource)["tags"] == "set"
 
 
 # ── Behavioural equivalence tests ───────────────────────────────────

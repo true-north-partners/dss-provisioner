@@ -4,16 +4,17 @@ Three markers attach to Pydantic fields via ``Annotated``:
 
 - ``Ref``      — field references another resource (consumed by ``reference_names()``)
 - ``DSSParam`` — field maps to a path in the DSS raw definition dict
-- ``Compare``  — documents how the engine should compare the field (engine integration deferred)
+- ``Compare``  — field-level comparison strategy used by the engine
 
 Helper functions introspect these markers at runtime to automate
-``reference_names()``, ``to_dss_params()``, and ``_read_attrs()`` extraction.
+``reference_names()``, ``to_dss_params()``, ``_read_attrs()`` extraction,
+and per-field comparison strategies.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypeVar
 
 from pydantic_core import PydanticUndefined
 
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
 
 M = TypeVar("M")
+CompareStrategy: TypeAlias = Literal["partial", "exact", "set"]
 
 
 # ── Marker dataclasses ──────────────────────────────────────────────
@@ -48,13 +50,14 @@ class DSSParam:
 
 @dataclass(frozen=True, slots=True)
 class Compare:
-    """Documents how the engine should compare the field.
+    """How the engine should compare the field.
 
-    ``strategy`` is ``"partial"`` (only compare keys present in desired) or ``"exact"``.
-    Engine integration is deferred — this is documentary only for now.
+    - ``"partial"``: for dict values, only keys declared in desired are compared
+    - ``"exact"``: strict equality comparison
+    - ``"set"``: order-insensitive list comparison
     """
 
-    strategy: str
+    strategy: CompareStrategy
 
 
 # ── Shared introspection primitives ─────────────────────────────────
@@ -114,6 +117,13 @@ def collect_refs(resource: Any) -> list[str]:
         for name, _, _ in _iter_marked_fields(resource, Ref)
         for ref in _coerce_to_list(getattr(resource, name))
     ]
+
+
+def collect_compare_strategies(resource_or_cls: Any) -> dict[str, CompareStrategy]:
+    """Collect per-field compare strategies from ``Compare`` markers."""
+    return {
+        name: marker.strategy for name, _, marker in _iter_marked_fields(resource_or_cls, Compare)
+    }
 
 
 def extract_dss_attrs(resource_cls: type, raw: dict[str, Any]) -> dict[str, Any]:
