@@ -3,6 +3,7 @@
 import contextlib
 import hashlib
 import json
+import logging
 import os
 import tempfile
 import uuid
@@ -12,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 
 def _canonical_json(obj: Any) -> str:
@@ -94,17 +97,21 @@ class State(BaseModel):
         finally:
             with contextlib.suppress(FileNotFoundError):
                 tmp_file.unlink()
+        logger.debug("State saved: serial=%d path=%s", self.serial, path)
 
     @classmethod
     def load(cls, path: Path) -> "State":
         """Load state from a JSON file."""
-        return cls.model_validate_json(path.read_text())
+        state = cls.model_validate_json(path.read_text(encoding="utf-8"))
+        logger.debug("State loaded from %s", path)
+        return state
 
     @classmethod
     def load_or_create(cls, path: Path, project_key: str) -> "State":
         """Load existing state or create a new one."""
         if path.exists():
             return cls.load(path)
+        logger.debug("Created new state for project %s", project_key)
         return cls(project_key=project_key)
 
 

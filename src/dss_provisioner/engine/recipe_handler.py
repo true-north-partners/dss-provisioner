@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from dss_provisioner.engine.handlers import PlanContext, ResourceHandler
 from dss_provisioner.resources.dataset import DatasetResource
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from dataikuapi.dss.project import DSSProject
@@ -72,7 +75,7 @@ class RecipeHandler(ResourceHandler[R]):
                             return None
                         return zone_id
         except Exception:
-            # Flow zones may not be available (e.g. free edition).
+            logger.debug("Zone read unavailable for recipe %s", recipe_name, exc_info=True)
             return None
         return None
 

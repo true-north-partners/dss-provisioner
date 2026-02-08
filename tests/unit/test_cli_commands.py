@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from typer.testing import CliRunner
 
 from dss_provisioner.cli import app
@@ -347,3 +350,90 @@ class TestNoColor:
 
         result = runner.invoke(app, ["plan", "--no-color"])
         assert "\x1b[" not in result.stdout
+
+
+@pytest.fixture(autouse=False)
+def _reset_pkg_logger():
+    """Reset the dss_provisioner logger level after each logging test."""
+    yield
+    logging.getLogger("dss_provisioner").setLevel(logging.NOTSET)
+
+
+@pytest.mark.usefixtures("_reset_pkg_logger")
+class TestConfigureLogging:
+    """Unit-test ``_configure_logging`` by mocking ``logging.basicConfig``.
+
+    Pytest's logging plugin installs a handler on the root logger, making
+    ``basicConfig`` a no-op without ``force=True``.  Rather than fighting
+    the handler lifecycle, we mock ``basicConfig`` and assert the call args.
+    The function sets the root logger to WARNING (keeping third-party libs
+    quiet) and scopes the desired level to the ``dss_provisioner`` logger.
+    """
+
+    @patch("logging.basicConfig")
+    def test_verbose_flag_configures_info(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _LOG_FORMAT, _configure_logging
+
+        _configure_logging(1)
+        mock_bc.assert_called_once_with(
+            level=logging.WARNING,
+            format=_LOG_FORMAT,
+            stream=sys.stderr,
+            force=True,
+        )
+        assert logging.getLogger("dss_provisioner").level == logging.INFO
+
+    @patch("logging.basicConfig")
+    def test_double_verbose_configures_debug(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _LOG_FORMAT, _configure_logging
+
+        _configure_logging(2)
+        mock_bc.assert_called_once_with(
+            level=logging.WARNING,
+            format=_LOG_FORMAT,
+            stream=sys.stderr,
+            force=True,
+        )
+        assert logging.getLogger("dss_provisioner").level == logging.DEBUG
+
+    @patch("logging.basicConfig")
+    def test_no_verbose_stays_unconfigured(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        _configure_logging(0)
+        mock_bc.assert_not_called()
+
+    @patch("logging.basicConfig")
+    def test_dss_log_env_var(self, mock_bc: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        monkeypatch.setenv("DSS_LOG", "DEBUG")
+        _configure_logging(0)
+        mock_bc.assert_called_once()
+        assert logging.getLogger("dss_provisioner").level == logging.DEBUG
+
+    @patch("logging.basicConfig")
+    def test_dss_log_overrides_verbose(
+        self, mock_bc: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        monkeypatch.setenv("DSS_LOG", "WARNING")
+        _configure_logging(2)
+        mock_bc.assert_called_once()
+        assert logging.getLogger("dss_provisioner").level == logging.WARNING
+
+    @patch("logging.basicConfig")
+    def test_invalid_dss_log_warns_and_defaults_to_info(
+        self,
+        mock_bc: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        monkeypatch.setenv("DSS_LOG", "BOGUS")
+        _configure_logging(0)
+        mock_bc.assert_called_once()
+        assert logging.getLogger("dss_provisioner").level == logging.INFO
+        assert "invalid DSS_LOG level" in capsys.readouterr().err

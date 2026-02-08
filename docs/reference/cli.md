@@ -10,6 +10,22 @@ All commands accept:
 |---|---|---|
 | `--config` | `dss-provisioner.yaml` | Path to configuration file |
 | `--no-color` | `false` | Disable colored output |
+| `-v` / `-vv` | — | Increase log verbosity (`-v` info, `-vv` debug) |
+
+Verbosity flags are top-level options and must appear **before** the command name:
+
+```bash
+dss-provisioner -v plan          # INFO-level logs on stderr
+dss-provisioner -vv apply        # DEBUG-level logs on stderr
+```
+
+The `DSS_LOG` environment variable overrides `-v` flags and accepts any Python logging level name (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`):
+
+```bash
+DSS_LOG=DEBUG dss-provisioner plan   # same as -vv
+```
+
+Logs are scoped to `dss_provisioner.*` loggers and written to stderr so they do not interfere with command output on stdout.
 
 ## Commands
 

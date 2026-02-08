@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ from ruamel.yaml import YAML
 
 from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
 from dss_provisioner.config.schema import Config
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from dss_provisioner.resources.base import Resource
@@ -56,6 +59,7 @@ def load_config(path: Path | str) -> Config:
     config.config_dir = path.parent
 
     if config.modules:
+        logger.debug("Expanding %d module(s)", len(config.modules))
         try:
             config._module_resources = expand_modules(config.modules, config.config_dir)
         except ModuleExpansionError as exc:
@@ -65,4 +69,5 @@ def load_config(path: Path | str) -> Config:
     if errors:
         raise ConfigError("\n".join(errors))
 
+    logger.info("Loaded config from %s (%d resources)", path, len(config.resources))
     return config
