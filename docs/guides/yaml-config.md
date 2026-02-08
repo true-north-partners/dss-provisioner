@@ -119,6 +119,16 @@ scenarios:
     type: python
     active: false
     code_file: ./scenarios/e2e_test.py
+
+modules:
+  - call: modules.pipelines:snowflake_pipeline
+    instances:
+      customers:
+        table: CUSTOMERS
+        schema_name: RAW
+      orders:
+        table: ORDERS
+        schema_name: STAGING
 ```
 
 ## Provider
@@ -143,6 +153,7 @@ scenarios:
 | `datasets` | list | `[]` | Dataset resource definitions |
 | `recipes` | list | `[]` | Recipe resource definitions |
 | `scenarios` | list | `[]` | Scenario resource definitions (applied after datasets/recipes) |
+| `modules` | list | `[]` | Python module invocations that expand into resources at config-load time |
 
 ## Variables fields
 
@@ -343,6 +354,59 @@ Sync recipes have no additional fields beyond the common recipe fields.
 |---|---|---|---|
 | `code` | string | `""` | Inline Python code |
 | `code_file` | string | — | Path to Python file (relative to config file) |
+
+## Modules
+
+Modules let you define reusable resource generators as Python functions. Each module entry specifies a callable and how to invoke it.
+
+### Module entry fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `call` | string | — | **Required.** Callable reference — short name (entry point) or `module.path:function` |
+| `instances` | dict | — | Named instances. Each key becomes `name=`, values are extra kwargs |
+| `with` | dict | — | Single invocation kwargs (passed directly to the callable) |
+
+Exactly one of `instances` or `with` must be provided.
+
+### Callable resolution
+
+The `call` string is resolved in order:
+
+1. **Entry point** — if no `:` is present, looks up the name in the `dss_provisioner.modules` entry point group
+2. **Installed package** — `module.path:function` tries `importlib.import_module` first
+3. **Local file** — falls back to loading `module/path.py` relative to the config file directory
+
+### Entry point registration
+
+Package authors register module callables as entry points:
+
+```toml
+# pyproject.toml
+[project.entry-points."dss_provisioner.modules"]
+snowflake_pipeline = "my_package.snowflake:snowflake_pipeline"
+```
+
+### Examples
+
+```yaml
+# Multiple instances — each key becomes name= kwarg
+modules:
+  - call: snowflake_pipeline
+    instances:
+      customers:
+        table: CUSTOMERS
+      orders:
+        table: ORDERS
+
+  # Single invocation — kwargs passed directly
+  - call: modules.pipelines:customer_pipeline
+    with:
+      name: customers
+      table: CUSTOMERS
+```
+
+The callable must return `list[Resource]`. Module-generated resources are merged with top-level resources before planning.
 
 ## Column definition
 

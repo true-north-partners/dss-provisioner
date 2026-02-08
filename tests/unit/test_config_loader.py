@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from io import StringIO
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
@@ -421,3 +425,44 @@ class TestManagedFolderParsing:
                 "  - name: models\n    type: filesystem\n"
                 "    connection: c\n    path: /p\n    bad_field: x\n"
             )
+
+
+class TestModuleIntegration:
+    def test_load_config_with_modules(self, tmp_path: Path) -> None:
+        mod_dir = tmp_path / "modules"
+        mod_dir.mkdir()
+        (mod_dir / "pipelines.py").write_text(
+            "from dss_provisioner.resources.zone import ZoneResource\n"
+            "def make_zones(name):\n"
+            "    return [ZoneResource(name=name)]\n"
+        )
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            "provider:\n  project: TEST\n"
+            "modules:\n"
+            "  - call: modules.pipelines:make_zones\n"
+            "    instances:\n"
+            "      raw: {}\n"
+            "      curated: {}\n"
+        )
+        config = load_config(config_file)
+        names = {r.name for r in config.resources}
+        assert "raw" in names
+        assert "curated" in names
+        assert len(config.resources) == 2
+
+    def test_empty_modules_section(self) -> None:
+        config = _parse("provider:\n  project: X\nmodules:\n")
+        assert config.modules == []
+
+    def test_load_config_module_error_wrapped(self, tmp_path: Path) -> None:
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            "provider:\n  project: TEST\n"
+            "modules:\n"
+            "  - call: nonexistent.mod:fn\n"
+            "    with:\n"
+            "      name: x\n"
+        )
+        with pytest.raises(ConfigError, match="not found"):
+            load_config(config_file)

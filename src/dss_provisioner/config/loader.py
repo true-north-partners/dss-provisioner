@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
+from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
 from dss_provisioner.config.schema import Config
 
 
@@ -33,4 +34,11 @@ def load_config(path: Path | str) -> Config:
         raise ConfigError(str(exc)) from exc
 
     config.config_dir = path.parent
+
+    if config.modules:
+        try:
+            config._module_resources = expand_modules(config.modules, config.config_dir)
+        except ModuleExpansionError as exc:
+            raise ConfigError(str(exc)) from exc
+
     return config

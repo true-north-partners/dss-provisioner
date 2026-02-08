@@ -51,6 +51,7 @@ nav:
       - guides/index.md
       - Installation: guides/installation.md
       - YAML configuration: guides/yaml-config.md
+      - Writing modules: guides/modules.md
       - Python API: guides/python-api.md
   - Reference:
       - reference/index.md

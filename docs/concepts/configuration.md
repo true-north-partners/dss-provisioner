@@ -64,6 +64,35 @@ Available dataset types: `snowflake`, `oracle`, `filesystem`, `upload`.
 
 Available recipe types: `python`, `sql_query`, `sync`.
 
+## Modules
+
+The `modules` section lets you define reusable resource generators as Python functions. A module is a callable that accepts parameters and returns `list[Resource]`, expanded at config-load time before the engine sees them.
+
+```yaml
+modules:
+  # Multiple instances of the same module — each key becomes name=
+  - call: snowflake_pipeline
+    instances:
+      customers:
+        table: CUSTOMERS
+      orders:
+        table: ORDERS
+
+  # Single invocation with explicit parameters
+  - call: modules.pipelines:customer_pipeline
+    with:
+      name: customers
+      table: CUSTOMERS
+```
+
+Module callables are resolved in three ways:
+
+1. **Entry point** — short name (no `:`) resolved via `dss_provisioner.modules` entry point group
+2. **Installed package** — `module.path:function` resolved via `importlib.import_module`
+3. **Local file** — when the import fails, falls back to loading from a file relative to the config directory
+
+Module-generated resources are merged with top-level resources — the engine treats them identically. See [YAML configuration](../guides/yaml-config.md#modules) for the full field reference.
+
 ## Variable substitution
 
 DSS variables like `${projectKey}` are supported in string fields. They are resolved transparently during plan comparison so they don't cause false drift. For example:

@@ -11,7 +11,7 @@ YAML config ──► plan() ──► Plan (diff) ──► apply() ──► D
               State file ◄──────────────────────────── Updated state
 ```
 
-1. **Load** — Parse `dss-provisioner.yaml` into a validated `Config` object
+1. **Load** — Parse `dss-provisioner.yaml` into a validated `Config` object. If `modules:` are defined, expand them into resources at this stage
 2. **Refresh** — Read live DSS state for each tracked resource, update the state file
 3. **Plan** — Compare desired resources against state, produce a `Plan` of `ResourceChange` items
 4. **Apply** — Execute the plan in dependency order, updating state after each resource

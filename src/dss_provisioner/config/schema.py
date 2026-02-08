@@ -5,9 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator, Discriminator, computed_field
+from pydantic import BaseModel, BeforeValidator, Discriminator, PrivateAttr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from dss_provisioner.config.modules import (
+    ModuleSpec,  # noqa: TC001 — Pydantic needs this at runtime
+)
 from dss_provisioner.resources.base import Resource  # noqa: TC001 — Pydantic needs this at runtime
 from dss_provisioner.resources.code_env import (
     CodeEnvResource,  # noqa: TC001 — Pydantic needs this at runtime
@@ -131,7 +134,10 @@ class Config(BaseModel):
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     scenarios: Annotated[list[_ScenarioEntry], BeforeValidator(_none_to_list)] = []
+    modules: Annotated[list[ModuleSpec], BeforeValidator(_none_to_list)] = []
     config_dir: Path = Path()
+
+    _module_resources: list[Resource] = PrivateAttr(default_factory=list)
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -149,4 +155,5 @@ class Config(BaseModel):
             resources.append(self.variables)
         if self.code_envs is not None:
             resources.append(self.code_envs)
+        resources.extend(self._module_resources)
         return resources
