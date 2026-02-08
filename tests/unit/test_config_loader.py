@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from dss_provisioner.config.loader import ConfigError, load_config
+from dss_provisioner.config.loader import ConfigError, _validate_unique_names, load_config
 from dss_provisioner.config.schema import Config
 from dss_provisioner.resources.code_env import CodeEnvResource
 from dss_provisioner.resources.dataset import (
@@ -465,4 +465,75 @@ class TestModuleIntegration:
             "      name: x\n"
         )
         with pytest.raises(ConfigError, match="not found"):
+            load_config(config_file)
+
+
+class TestDuplicateNameValidation:
+    def test_duplicate_same_subtype(self) -> None:
+        resources = [
+            FilesystemDatasetResource(name="raw", connection="c", path="/a"),
+            FilesystemDatasetResource(name="raw", connection="c", path="/b"),
+        ]
+        errors = _validate_unique_names(resources)
+        assert len(errors) == 1
+        assert "Duplicate dataset name 'raw'" in errors[0]
+
+    def test_duplicate_cross_subtype(self) -> None:
+        resources = [
+            SnowflakeDatasetResource(name="raw", connection="sf", schema_name="S", table="T"),
+            FilesystemDatasetResource(name="raw", connection="c", path="/a"),
+        ]
+        errors = _validate_unique_names(resources)
+        assert len(errors) == 1
+        assert "dataset" in errors[0]
+        assert "dss_snowflake_dataset.raw" in errors[0]
+        assert "dss_filesystem_dataset.raw" in errors[0]
+
+    def test_same_name_different_namespace(self) -> None:
+        resources = [
+            FilesystemDatasetResource(name="raw", connection="c", path="/a"),
+            ZoneResource(name="raw"),
+        ]
+        errors = _validate_unique_names(resources)
+        assert errors == []
+
+    def test_no_duplicates(self) -> None:
+        resources = [
+            FilesystemDatasetResource(name="input", connection="c", path="/a"),
+            FilesystemDatasetResource(name="output", connection="c", path="/b"),
+        ]
+        errors = _validate_unique_names(resources)
+        assert errors == []
+
+
+class TestDuplicateNameIntegration:
+    def test_load_config_duplicate_names(self, tmp_path: Path) -> None:
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            "provider:\n  project: TEST\n"
+            "datasets:\n"
+            "  - name: raw\n    type: filesystem\n    connection: c\n    path: /a\n"
+            "  - name: raw\n    type: upload\n"
+        )
+        with pytest.raises(ConfigError, match="Duplicate dataset name 'raw'"):
+            load_config(config_file)
+
+    def test_load_config_module_duplicate_with_toplevel(self, tmp_path: Path) -> None:
+        mod_dir = tmp_path / "modules"
+        mod_dir.mkdir()
+        (mod_dir / "gen.py").write_text(
+            "from dss_provisioner.resources.zone import ZoneResource\n"
+            "def make(name):\n"
+            "    return [ZoneResource(name=name)]\n"
+        )
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            "provider:\n  project: TEST\n"
+            "zones:\n  - name: raw\n"
+            "modules:\n"
+            "  - call: modules.gen:make\n"
+            "    instances:\n"
+            "      raw: {}\n"
+        )
+        with pytest.raises(ConfigError, match="Duplicate zone name 'raw'"):
             load_config(config_file)

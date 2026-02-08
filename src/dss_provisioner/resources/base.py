@@ -17,6 +17,7 @@ class Resource(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     resource_type: ClassVar[str]
+    namespace: ClassVar[str]
     plan_priority: ClassVar[int] = 100
 
     name: str = Field(pattern=r"^[a-zA-Z0-9_]+$")

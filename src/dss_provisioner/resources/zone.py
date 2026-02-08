@@ -17,4 +17,5 @@ class ZoneResource(Resource):
     """
 
     resource_type: ClassVar[str] = "dss_zone"
+    namespace: ClassVar[str] = "zone"
     color: str = Field(default="#2ab1ac", pattern=r"^#[0-9A-Fa-f]{6}$")

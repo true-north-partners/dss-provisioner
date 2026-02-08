@@ -14,6 +14,7 @@ class ManagedFolderResource(Resource):
     """Base resource for DSS managed folders."""
 
     resource_type: ClassVar[str] = "dss_managed_folder"
+    namespace: ClassVar[str] = "managed_folder"
 
     type: str
     connection: Annotated[str | None, DSSParam("params.connection")] = None

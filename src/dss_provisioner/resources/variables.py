@@ -19,6 +19,7 @@ class VariablesResource(Resource):
     """
 
     resource_type: ClassVar[str] = "dss_variables"
+    namespace: ClassVar[str] = "variables"
     plan_priority: ClassVar[int] = 0
 
     name: Literal["variables"] = "variables"
