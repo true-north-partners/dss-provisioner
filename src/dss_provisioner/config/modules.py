@@ -63,7 +63,12 @@ def _load_local_module(module_path: str, config_dir: Path) -> ModuleType:
     if spec is None or spec.loader is None:
         raise ModuleExpansionError(f"Failed to create module spec for '{file_path}'")
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as exc:
+        raise ModuleExpansionError(
+            f"Module '{module_path}' at {file_path} failed to import: {exc}"
+        ) from exc
     return mod
 
 
@@ -105,7 +110,11 @@ def _resolve_callable(call: str, config_dir: Path) -> Callable[..., list[Resourc
 
     try:
         mod = importlib.import_module(module_path)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as exc:
+        # Only fall back to local file if the *requested* module is missing.
+        # If the module exists but has a broken internal import, re-raise.
+        if exc.name is not None and not module_path.startswith(exc.name):
+            raise ModuleExpansionError(f"Module '{module_path}' failed to import: {exc}") from exc
         mod = _load_local_module(module_path, config_dir)
 
     return _get_callable_attr(mod, function_name, call)

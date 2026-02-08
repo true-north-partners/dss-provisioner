@@ -134,7 +134,7 @@ class Config(BaseModel):
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     scenarios: Annotated[list[_ScenarioEntry], BeforeValidator(_none_to_list)] = []
-    modules: list[ModuleSpec] = []
+    modules: Annotated[list[ModuleSpec], BeforeValidator(_none_to_list)] = []
     config_dir: Path = Path()
 
     _module_resources: list[Resource] = PrivateAttr(default_factory=list)

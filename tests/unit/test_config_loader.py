@@ -451,6 +451,10 @@ class TestModuleIntegration:
         assert "curated" in names
         assert len(config.resources) == 2
 
+    def test_empty_modules_section(self) -> None:
+        config = _parse("provider:\n  project: X\nmodules:\n")
+        assert config.modules == []
+
     def test_load_config_module_error_wrapped(self, tmp_path: Path) -> None:
         config_file = tmp_path / "config.yaml"
         config_file.write_text(

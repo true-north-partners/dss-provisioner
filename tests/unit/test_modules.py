@@ -122,6 +122,13 @@ class TestResolveCallable:
         with pytest.raises(ModuleExpansionError, match="not found"):
             _resolve_callable("nonexistent.mod:fn", tmp_path)
 
+    def test_broken_internal_import_not_swallowed(self, tmp_path: Path) -> None:
+        mod_dir = tmp_path / "mymod"
+        mod_dir.mkdir()
+        (mod_dir / "broken.py").write_text("import nonexistent_dependency_xyz\n")
+        with pytest.raises(ModuleExpansionError, match="failed to import"):
+            _resolve_callable("mymod.broken:fn", tmp_path)
+
     def test_missing_function(self, tmp_path: Path) -> None:
         mod_dir = tmp_path / "mymod"
         mod_dir.mkdir()
