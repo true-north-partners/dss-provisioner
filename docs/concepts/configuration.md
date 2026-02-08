@@ -145,7 +145,7 @@ At plan time, the engine additionally validates:
 
 - `depends_on` addresses reference known resources
 - `zone` references point to actual zone resources
-- `sql_query` recipes have at least one input that is a SQL-connection dataset
+- `sql_query` recipes have at least one SQL-capable input (local SQL dataset or foreign ref)
 - `exposed_objects` reference local DSS objects that exist
 - `foreign_*` source project differs from the target project
 

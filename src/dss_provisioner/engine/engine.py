@@ -115,22 +115,7 @@ _RECIPE_RESOURCE_TYPES = {
 }
 
 
-def _foreign_full_ref(attrs: Mapping[str, Any]) -> str | None:
-    full_ref = attrs.get("full_ref")
-    if isinstance(full_ref, str) and full_ref:
-        return full_ref
-
-    source_project = attrs.get("source_project")
-    source_name = attrs.get("source_name")
-    if isinstance(source_project, str) and isinstance(source_name, str):
-        return f"{source_project}.{source_name}"
-    return None
-
-
-def _build_foreign_alias_map(
-    desired_by_addr: Mapping[str, Resource],
-    state: State,
-) -> dict[str, str]:
+def _build_foreign_alias_map(desired_by_addr: Mapping[str, Resource]) -> dict[str, str]:
     aliases: dict[str, str] = {}
 
     for resource in desired_by_addr.values():
@@ -139,16 +124,16 @@ def _build_foreign_alias_map(
         source_project = getattr(resource, "source_project", None)
         source_name = getattr(resource, "source_name", None)
         if isinstance(source_project, str) and isinstance(source_name, str):
-            aliases[resource.name] = f"{source_project}.{source_name}"
-
-    for inst in state.resources.values():
-        if inst.resource_type not in _FOREIGN_RESOURCE_TYPES:
-            continue
-        if inst.name in aliases:
-            continue
-        full_ref = _foreign_full_ref(inst.attributes)
-        if full_ref is not None:
-            aliases[inst.name] = full_ref
+            full_ref = f"{source_project}.{source_name}"
+            existing = aliases.get(resource.name)
+            if existing is not None and existing != full_ref:
+                raise ValidationError(
+                    [
+                        f"Conflicting foreign aliases for name '{resource.name}': "
+                        f"'{existing}' vs '{full_ref}'."
+                    ]
+                )
+            aliases[resource.name] = full_ref
     return aliases
 
 
@@ -388,7 +373,7 @@ class DSSEngine:
                 changes = self._plan_deletes(state, state_addrs)
             else:
                 variables = get_variables(ctx)
-                foreign_aliases = _build_foreign_alias_map(desired_by_addr, state)
+                foreign_aliases = _build_foreign_alias_map(desired_by_addr)
                 topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
                 priorities = {addr: r.plan_priority for addr, r in desired_by_addr.items()}
                 order = DependencyGraph(
