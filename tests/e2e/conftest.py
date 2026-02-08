@@ -65,13 +65,14 @@ def _resolve_api_key_for_collection(host: str) -> str | None:
     return None
 
 
-def _is_community_edition(host: str, api_key: str) -> bool:
+def _is_community_edition(host: str, api_key: str) -> bool | None:
+    """Return True if community, False if enterprise, None if undetermined."""
     try:
         client = dataikuapi.DSSClient(host, api_key)
         status = client.get_licensing_status()
         return not status.get("ceEnterprise", False)
     except Exception:
-        return True
+        return None
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -79,7 +80,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         return
     host = _resolve_host(config)
     api_key = _resolve_api_key_for_collection(host)
-    if api_key is None or _is_community_edition(host, api_key):
+    is_community = _is_community_edition(host, api_key) if api_key else None
+    if is_community is True:
         skip = pytest.mark.skip(reason="requires enterprise DSS edition")
         for item in items:
             if "enterprise" in item.keywords:
@@ -156,12 +158,13 @@ def dss_client(dss_host: str, dss_api_key: str) -> dataikuapi.DSSClient:
 
 
 @pytest.fixture(scope="session")
-def dss_is_community(dss_client: dataikuapi.DSSClient) -> bool:
+def dss_is_community(dss_client: dataikuapi.DSSClient) -> bool | None:
+    """True if community, False if enterprise, None if undetermined."""
     try:
         status = dss_client.get_licensing_status()
         return not status.get("ceEnterprise", False)
     except Exception:
-        return True
+        return None
 
 
 @pytest.fixture(scope="session")
