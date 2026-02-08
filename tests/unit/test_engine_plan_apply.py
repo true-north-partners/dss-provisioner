@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import Field
 
+from dss_provisioner.config.registry import default_registry
 from dss_provisioner.core import DSSProvider, ResourceInstance
 from dss_provisioner.core.state import State
 from dss_provisioner.engine import DSSEngine
@@ -21,6 +22,8 @@ from dss_provisioner.engine.handlers import EngineContext, ResourceHandler
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action, Plan
 from dss_provisioner.resources.base import Resource
+from dss_provisioner.resources.foreign import ForeignDatasetResource, ForeignManagedFolderResource
+from dss_provisioner.resources.recipe import SyncRecipeResource
 
 
 class DummyResource(Resource):
@@ -177,6 +180,96 @@ def test_apply_runs_create_update_before_deletes(tmp_path: Path) -> None:
 
     assert handler.calls[0] == ("create", "dummy.r2")
     assert handler.calls[1] == ("delete", "dummy.r1")
+
+
+def test_plan_normalizes_recipe_foreign_aliases(tmp_path: Path) -> None:
+    provider = DSSProvider.from_client(MagicMock())
+    engine = DSSEngine(
+        provider=provider,
+        project_key="PRJ",
+        state_path=tmp_path / "state.json",
+        registry=default_registry(),
+    )
+
+    foreign = ForeignDatasetResource(
+        name="shared_customers",
+        source_project="DATA_LAKE",
+        source_name="customers",
+    )
+    recipe = SyncRecipeResource(
+        name="sync_shared",
+        inputs=["shared_customers"],
+        outputs=["out_ds"],
+    )
+
+    plan = engine.plan([recipe, foreign], refresh=False)
+    recipe_change = next(c for c in plan.changes if c.address == "dss_sync_recipe.sync_shared")
+    assert recipe_change.desired is not None
+    assert recipe_change.desired["inputs"] == ["DATA_LAKE.customers"]
+    assert "dss_foreign_dataset.shared_customers" in recipe_change.desired["depends_on"]
+
+
+def test_plan_does_not_normalize_from_state_only_foreign_alias(tmp_path: Path) -> None:
+    provider = DSSProvider.from_client(MagicMock())
+    engine = DSSEngine(
+        provider=provider,
+        project_key="PRJ",
+        state_path=tmp_path / "state.json",
+        registry=default_registry(),
+    )
+
+    state = State(
+        project_key="PRJ",
+        resources={
+            "dss_foreign_dataset.shared_customers": ResourceInstance(
+                address="dss_foreign_dataset.shared_customers",
+                resource_type="dss_foreign_dataset",
+                name="shared_customers",
+                attributes={
+                    "name": "shared_customers",
+                    "source_project": "DATA_LAKE",
+                    "source_name": "customers",
+                    "full_ref": "DATA_LAKE.customers",
+                },
+            )
+        },
+    )
+    state.save(engine.state_path)
+
+    recipe = SyncRecipeResource(
+        name="sync_shared",
+        inputs=["shared_customers"],
+        outputs=["out_ds"],
+    )
+
+    plan = engine.plan([recipe], refresh=False)
+    recipe_change = next(c for c in plan.changes if c.address == "dss_sync_recipe.sync_shared")
+    assert recipe_change.desired is not None
+    assert recipe_change.desired["inputs"] == ["shared_customers"]
+
+
+def test_plan_rejects_conflicting_foreign_alias_names(tmp_path: Path) -> None:
+    provider = DSSProvider.from_client(MagicMock())
+    engine = DSSEngine(
+        provider=provider,
+        project_key="PRJ",
+        state_path=tmp_path / "state.json",
+        registry=default_registry(),
+    )
+
+    foreign_dataset = ForeignDatasetResource(
+        name="shared",
+        source_project="DATA_LAKE",
+        source_name="customers",
+    )
+    foreign_folder = ForeignManagedFolderResource(
+        name="shared",
+        source_project="ARTIFACTS",
+        source_name="models",
+    )
+
+    with pytest.raises(ValidationError, match="Conflicting foreign aliases"):
+        engine.plan([foreign_dataset, foreign_folder], refresh=False)
 
 
 def test_destroy_plan_deletes_all_in_reverse_dependency_order(tmp_path: Path) -> None:

@@ -21,6 +21,7 @@ from dss_provisioner.engine.recipe_handler import (
 from dss_provisioner.engine.registry import ResourceTypeRegistry
 from dss_provisioner.engine.types import Action
 from dss_provisioner.resources.dataset import DatasetResource
+from dss_provisioner.resources.foreign import ForeignDatasetResource
 from dss_provisioner.resources.recipe import (
     PythonRecipeResource,
     RecipeResource,
@@ -561,6 +562,45 @@ class TestValidatePlanSQLInput:
             },
         )
         plan_ctx = PlanContext(all_desired, state)
+
+        errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
+        assert errors == []
+
+    def test_accepts_foreign_dataset_input(
+        self, ctx: EngineContext, sql_handler: SQLQueryRecipeHandler
+    ) -> None:
+        desired = SQLQueryRecipeResource(
+            name="my_sql",
+            inputs=["shared_customers"],
+            outputs=["out_ds"],
+            code="SELECT 1",
+        )
+        foreign = ForeignDatasetResource(
+            name="shared_customers",
+            source_project="DATA_LAKE",
+            source_name="customers",
+        )
+        all_desired = {
+            desired.address: desired,
+            foreign.address: foreign,
+        }
+        plan_ctx = PlanContext(all_desired, State(project_key="PRJ"))
+
+        errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
+        assert errors == []
+
+    def test_accepts_dot_notation_foreign_ref(
+        self,
+        ctx: EngineContext,
+        sql_handler: SQLQueryRecipeHandler,
+    ) -> None:
+        desired = SQLQueryRecipeResource(
+            name="my_sql",
+            inputs=["DATA_LAKE.customers"],
+            outputs=["out_ds"],
+            code="SELECT 1",
+        )
+        plan_ctx = PlanContext({desired.address: desired}, State(project_key="PRJ"))
 
         errors = sql_handler.validate_plan(ctx, desired, plan_ctx)
         assert errors == []

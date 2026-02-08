@@ -275,6 +275,19 @@ class PythonRecipeHandler(RecipeHandler["PythonRecipeResource"]):
 class SQLQueryRecipeHandler(RecipeHandler["SQLQueryRecipeResource"]):
     """Handler for SQL query recipes — adds code payload and SQL input validation."""
 
+    @staticmethod
+    def _is_sql_compatible_input(ref: str, plan_ctx: PlanContext) -> bool:
+        ds_type = plan_ctx.get_attr(ref, "type", resource_type_suffix="_dataset")
+        if isinstance(ds_type, str) and ds_type in DatasetResource.sql_types:
+            return True
+
+        if plan_ctx.has_resource(ref, resource_type="dss_foreign_dataset"):
+            return True
+
+        # Dot-notation refs are foreign DSS objects (PROJECT_KEY.object_name).
+        # We can't infer connection type here, so defer to DSS runtime validation.
+        return "." in ref
+
     def _read_extra_attrs(self, settings: Any, raw_def: dict[str, Any]) -> dict[str, Any]:
         _ = raw_def
         return {"code": _read_code_payload(settings)}
@@ -298,11 +311,7 @@ class SQLQueryRecipeHandler(RecipeHandler["SQLQueryRecipeResource"]):
     ) -> list[str]:
         errors = super().validate_plan(ctx, desired, plan_ctx)
 
-        if not any(
-            plan_ctx.get_attr(ref, "type", resource_type_suffix="_dataset")
-            in DatasetResource.sql_types
-            for ref in desired.inputs
-        ):
+        if not any(self._is_sql_compatible_input(ref, plan_ctx) for ref in desired.inputs):
             errors.append(
                 f"SQL query recipe '{desired.name}' requires at least one input "
                 f"with a SQL connection (inputs: {desired.inputs})"

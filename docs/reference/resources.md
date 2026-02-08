@@ -67,6 +67,40 @@ Auto-generated API documentation for all resource types.
     options:
       show_bases: false
 
+## Exposed Objects
+
+### ExposedObjectResource
+
+::: dss_provisioner.resources.exposed_object.ExposedObjectResource
+    options:
+      show_bases: false
+
+### ExposedDatasetResource
+
+::: dss_provisioner.resources.exposed_object.ExposedDatasetResource
+    options:
+      show_bases: false
+
+### ExposedManagedFolderResource
+
+::: dss_provisioner.resources.exposed_object.ExposedManagedFolderResource
+    options:
+      show_bases: false
+
+## Foreign Objects
+
+### ForeignDatasetResource
+
+::: dss_provisioner.resources.foreign.ForeignDatasetResource
+    options:
+      show_bases: false
+
+### ForeignManagedFolderResource
+
+::: dss_provisioner.resources.foreign.ForeignManagedFolderResource
+    options:
+      show_bases: false
+
 ## Datasets
 
 ### DatasetResource

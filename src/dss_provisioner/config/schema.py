@@ -22,6 +22,15 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.exposed_object import (
+    ExposedDatasetResource,
+    ExposedManagedFolderResource,
+    ExposedObjectResource,
+)
+from dss_provisioner.resources.foreign import (
+    ForeignDatasetResource,  # noqa: TC001 — Pydantic needs this at runtime
+    ForeignManagedFolderResource,  # noqa: TC001 — Pydantic needs this at runtime
+)
 from dss_provisioner.resources.git_library import (
     GitLibraryResource,  # noqa: TC001 — Pydantic needs this at runtime
 )
@@ -114,6 +123,12 @@ _RecipeEntry = Annotated[
     Discriminator("type"),
 ]
 
+_ExposedObjectEntry = Annotated[
+    ExposedDatasetResource | ExposedManagedFolderResource,
+    BeforeValidator(_type_normalizer(ExposedObjectResource)),
+    Discriminator("type"),
+]
+
 _ScenarioEntry = Annotated[
     StepBasedScenarioResource | PythonScenarioResource,
     BeforeValidator(_type_normalizer(ScenarioResource)),
@@ -132,6 +147,12 @@ class Config(BaseModel):
     libraries: Annotated[list[GitLibraryResource], BeforeValidator(_none_to_list)] = []
     managed_folders: Annotated[list[_ManagedFolderEntry], BeforeValidator(_none_to_list)] = []
     datasets: Annotated[list[_DatasetEntry], BeforeValidator(_none_to_list)] = []
+    exposed_objects: Annotated[list[_ExposedObjectEntry], BeforeValidator(_none_to_list)] = []
+    foreign_datasets: Annotated[list[ForeignDatasetResource], BeforeValidator(_none_to_list)] = []
+    foreign_managed_folders: Annotated[
+        list[ForeignManagedFolderResource],
+        BeforeValidator(_none_to_list),
+    ] = []
     recipes: Annotated[list[_RecipeEntry], BeforeValidator(_none_to_list)] = []
     scenarios: Annotated[list[_ScenarioEntry], BeforeValidator(_none_to_list)] = []
     modules: Annotated[list[ModuleSpec], BeforeValidator(_none_to_list)] = []
@@ -148,6 +169,9 @@ class Config(BaseModel):
             *self.libraries,
             *self.managed_folders,
             *self.datasets,
+            *self.exposed_objects,
+            *self.foreign_datasets,
+            *self.foreign_managed_folders,
             *self.recipes,
             *self.scenarios,
         ]

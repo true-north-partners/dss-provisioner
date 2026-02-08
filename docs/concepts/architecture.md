@@ -44,12 +44,16 @@ Handlers implement CRUD operations for each resource type. The engine delegates 
 - **ZoneHandler** — Creates, updates, reads, and deletes DSS flow zones
 - **GitLibraryHandler** — Creates, updates, reads, and deletes DSS Git library references
 - **DatasetHandler** — Creates, updates, reads, and deletes DSS datasets
+- **ExposedObjectHandler** — Manages project-level exposed object rules (`exposedObjects`)
+- **ForeignHandler** — Declares/validates cross-project foreign dataset/folder references
 - **RecipeHandler** — Creates, updates, reads, and deletes DSS recipes
 - **ScenarioHandler** — Creates, updates, reads, and deletes DSS scenarios (step-based and Python)
 
 ### Dependency graph
 
 Resources can declare dependencies explicitly via `depends_on` or implicitly through recipe `inputs`/`outputs`. The engine builds a directed acyclic graph and processes resources in topological order during apply.
+
+For cross-project aliases, the planner normalizes recipe refs to DSS full refs (`SOURCE_PROJECT.object`) while preserving dependency edges from declared aliases to foreign resources.
 
 If dependencies contain a cycle, the engine raises `DependencyCycleError`.
 

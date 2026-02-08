@@ -147,6 +147,67 @@ managed_folders:
     type: upload
 ```
 
+## Exposed object resources
+
+Exposed objects are project-level sharing rules: they declare which local datasets or managed folders this project makes available to other projects.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `type` | `dataset \| managed_folder` | — | **Required.** Exposed object type |
+| `target_projects` | `list[str]` | — | **Required.** Target project keys (deduplicated) |
+
+```yaml
+exposed_objects:
+  - name: curated_customers
+    type: dataset
+    target_projects:
+      - ANALYTICS
+      - REPORTING
+
+  - name: model_artifacts
+    type: managed_folder
+    target_projects:
+      - ML_SERVING
+```
+
+Exposed object resources have `plan_priority: 150`, so they run after local datasets/folders are in place.
+
+## Foreign object resources
+
+Foreign resources declare cross-project inputs this project consumes. They do not create datasets/folders in the source project; they validate that the source object exists and is exposed to this project.
+
+### Foreign datasets
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_project` | `str` | — | **Required.** Source project key |
+| `source_name` | `str` | — | **Required.** Source dataset name |
+
+```yaml
+foreign_datasets:
+  - name: shared_customers
+    source_project: DATA_LAKE
+    source_name: curated_customers
+```
+
+### Foreign managed folders
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_project` | `str` | — | **Required.** Source project key |
+| `source_name` | `str` | — | **Required.** Source managed folder name |
+
+```yaml
+foreign_managed_folders:
+  - name: shared_models
+    source_project: MODELING
+    source_name: model_artifacts
+```
+
+Foreign resources use the same namespace as local objects (`dataset` / `managed_folder`), so names must be unique across local + foreign declarations.
+
+Recipes can reference foreign aliases (`shared_customers`) in `inputs`/`outputs`; the engine resolves them to DSS full refs (`DATA_LAKE.curated_customers`) during planning/apply.
+
 ## Dataset resources
 
 All datasets share common fields from `DatasetResource`:
@@ -254,6 +315,9 @@ recipes:
     outputs: orders_summary
     code_file: ./recipes/aggregate_orders.sql
 ```
+
+SQL recipes must have at least one SQL-capable input. Inputs declared as foreign refs
+(`PROJECT.dataset`) or via `foreign_datasets` are accepted and validated by DSS at runtime.
 
 #### Sync recipes
 

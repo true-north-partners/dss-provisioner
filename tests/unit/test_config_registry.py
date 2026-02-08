@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from dss_provisioner.config.registry import default_registry
 from dss_provisioner.engine.dataset_handler import DatasetHandler
+from dss_provisioner.engine.exposed_object_handler import (
+    ExposedDatasetHandler,
+    ExposedManagedFolderHandler,
+)
+from dss_provisioner.engine.foreign_handler import (
+    ForeignDatasetHandler,
+    ForeignManagedFolderHandler,
+)
 from dss_provisioner.engine.managed_folder_handler import ManagedFolderHandler
 from dss_provisioner.engine.recipe_handler import (
     PythonRecipeHandler,
@@ -45,6 +53,22 @@ class TestDefaultRegistry:
         assert isinstance(registry.get("dss_python_recipe").handler, PythonRecipeHandler)
         assert isinstance(registry.get("dss_sql_query_recipe").handler, SQLQueryRecipeHandler)
 
+    def test_exposed_object_types_registered(self) -> None:
+        registry = default_registry()
+        assert isinstance(registry.get("dss_exposed_dataset").handler, ExposedDatasetHandler)
+        assert isinstance(
+            registry.get("dss_exposed_managed_folder").handler,
+            ExposedManagedFolderHandler,
+        )
+
+    def test_foreign_object_types_registered(self) -> None:
+        registry = default_registry()
+        assert isinstance(registry.get("dss_foreign_dataset").handler, ForeignDatasetHandler)
+        assert isinstance(
+            registry.get("dss_foreign_managed_folder").handler,
+            ForeignManagedFolderHandler,
+        )
+
     def test_all_scenario_types_registered(self) -> None:
         registry = default_registry()
         assert isinstance(registry.get("dss_step_scenario").handler, StepBasedScenarioHandler)
@@ -52,7 +76,7 @@ class TestDefaultRegistry:
 
     def test_total_count(self) -> None:
         registry = default_registry()
-        assert len(registry._registrations) == 17
+        assert len(registry._registrations) == 21
 
     def test_independent_instances(self) -> None:
         r1 = default_registry()

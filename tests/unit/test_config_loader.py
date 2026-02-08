@@ -21,6 +21,11 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.exposed_object import (
+    ExposedDatasetResource,
+    ExposedManagedFolderResource,
+)
+from dss_provisioner.resources.foreign import ForeignDatasetResource, ForeignManagedFolderResource
 from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.managed_folder import (
     FilesystemManagedFolderResource,
@@ -184,6 +189,58 @@ class TestRecipeDiscrimination:
     def test_sync(self, full_config: Config) -> None:
         r = full_config.recipes[2]
         assert isinstance(r, SyncRecipeResource)
+
+
+class TestExposedObjectParsing:
+    def test_exposed_objects_parse_with_type_aliases(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nexposed_objects:\n"
+            "  - name: curated_customers\n"
+            "    type: dataset\n"
+            "    target_projects: [ANALYTICS, REPORTING]\n"
+            "  - name: model_artifacts\n"
+            "    type: managed_folder\n"
+            "    target_projects: [ML_SERVING]\n"
+        )
+        assert len(config.exposed_objects) == 2
+        assert isinstance(config.exposed_objects[0], ExposedDatasetResource)
+        assert isinstance(config.exposed_objects[1], ExposedManagedFolderResource)
+
+    def test_exposed_objects_included_in_resources(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nexposed_objects:\n"
+            "  - name: shared_ds\n"
+            "    type: dataset\n"
+            "    target_projects: [ANALYTICS]\n"
+        )
+        addrs = [r.address for r in config.resources]
+        assert "dss_exposed_dataset.shared_ds" in addrs
+
+
+class TestForeignObjectParsing:
+    def test_foreign_objects_parsed(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nforeign_datasets:\n"
+            "  - name: customers_shared\n"
+            "    source_project: DATA_LAKE\n"
+            "    source_name: customers\n"
+            "foreign_managed_folders:\n"
+            "  - name: artifacts_shared\n"
+            "    source_project: MODELING\n"
+            "    source_name: model_artifacts\n"
+        )
+        assert isinstance(config.foreign_datasets[0], ForeignDatasetResource)
+        assert isinstance(config.foreign_managed_folders[0], ForeignManagedFolderResource)
+
+    def test_foreign_objects_included_in_resources(self) -> None:
+        config = _parse(
+            "provider:\n  project: X\nforeign_datasets:\n"
+            "  - name: customers_shared\n"
+            "    source_project: DATA_LAKE\n"
+            "    source_name: customers\n"
+        )
+        addrs = [r.address for r in config.resources]
+        assert "dss_foreign_dataset.customers_shared" in addrs
 
 
 class TestStringToListCoercion:
@@ -496,6 +553,19 @@ class TestDuplicateNameValidation:
         ]
         errors = _validate_unique_names(resources)
         assert errors == []
+
+    def test_foreign_dataset_shares_dataset_namespace(self) -> None:
+        resources = [
+            FilesystemDatasetResource(name="shared", connection="c", path="/a"),
+            ForeignDatasetResource(
+                name="shared",
+                source_project="SOURCE",
+                source_name="shared",
+            ),
+        ]
+        errors = _validate_unique_names(resources)
+        assert len(errors) == 1
+        assert "Duplicate dataset name 'shared'" in errors[0]
 
     def test_no_duplicates(self) -> None:
         resources = [
