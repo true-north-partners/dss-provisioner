@@ -22,7 +22,9 @@ class Resource(BaseModel):
 
     name: str = Field(pattern=r"^[a-zA-Z0-9_]+$")
     description: str = ""
-    tags: Annotated[list[Annotated[str, Field(min_length=1)]], Compare("set")] = []
+    tags: Annotated[list[Annotated[str, Field(min_length=1)]], Compare("set")] = Field(
+        default_factory=list
+    )
 
     # Lifecycle
     depends_on: list[str] = []

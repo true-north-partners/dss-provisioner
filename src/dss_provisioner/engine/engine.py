@@ -55,8 +55,18 @@ def _values_differ(
 ) -> bool:
     """Check whether a desired value differs from the prior (stored) value.
 
-    For dict values, only keys present in *desired* are compared — extra keys
-    added by the provider (e.g. DSS default expansion) are ignored.
+    Comparison semantics depend on *strategy*:
+
+    - ``strategy="set"``:
+      - If both values are lists, they are compared as sets (order-insensitive).
+      - Other types fall back to strict equality.
+    - ``strategy="exact"``:
+      - Values are compared with strict equality.
+      - For dicts, extra or missing keys are treated as differences.
+    - ``strategy=None`` or ``"partial"``:
+      - For dict values, only keys present in *desired* are compared.
+      - Extra keys present only in *prior* (provider-added defaults) are ignored.
+      - Non-dict values use strict equality.
     """
     if strategy == "set":
         if isinstance(desired, list) and isinstance(prior, list):
