@@ -84,6 +84,7 @@ class TestCreate:
             checkout="main",
             path_in_git_repository="python",
             add_to_python_path=True,
+            as_type="object",
         )
         future.wait_for_result.assert_called_once()
 

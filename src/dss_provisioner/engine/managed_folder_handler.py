@@ -129,7 +129,7 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
         folder = project.create_managed_folder(
             desired.name,
             folder_type=desired.type,
-            connection_name=desired.connection,
+            connection_name=desired.connection or "filesystem_folders",
         )
 
         settings = folder.get_settings()

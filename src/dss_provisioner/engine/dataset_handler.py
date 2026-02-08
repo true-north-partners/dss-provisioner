@@ -168,10 +168,9 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         project = self._get_project(ctx)
         params = desired.to_dss_params()
 
-        if desired.managed:
+        if desired.managed and desired.connection is not None:
             builder = project.new_managed_dataset(desired.name)
-            if desired.connection is not None:
-                builder.with_store_into(desired.connection)
+            builder.with_store_into(desired.connection)
             dataset = builder.create()
         else:
             dataset = project.create_dataset(desired.name, desired.type, params=params)
