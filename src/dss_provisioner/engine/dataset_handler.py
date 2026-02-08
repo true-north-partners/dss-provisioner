@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from dss_provisioner.engine.handlers import PlanContext, ResourceHandler
@@ -14,6 +15,8 @@ from dss_provisioner.resources.dataset import (
     UploadDatasetResource,
 )
 from dss_provisioner.resources.markers import extract_dss_attrs
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from dataikuapi.dss.dataset import DSSDataset, DSSDatasetSettings
@@ -98,7 +101,7 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
         try:
             zone = dataset.get_zone()
         except Exception:
-            # Flow zones may not be available (e.g. free edition).
+            logger.debug("Zone read unavailable for dataset %s", dataset.dataset_name)
             return None
         zone_id = zone.id
         # The default zone has a well-known id; treat it as "no zone".

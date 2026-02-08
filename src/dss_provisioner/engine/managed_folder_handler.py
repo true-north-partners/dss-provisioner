@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from dss_provisioner.engine.handlers import PlanContext, ResourceHandler
@@ -12,6 +13,8 @@ from dss_provisioner.resources.managed_folder import (
     UploadManagedFolderResource,
 )
 from dss_provisioner.resources.markers import extract_dss_attrs
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from dataikuapi.dss.managedfolder import DSSManagedFolder
@@ -78,7 +81,7 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
         try:
             zone = folder.get_zone()
         except Exception:
-            # Flow zones may not be available (e.g. free edition).
+            logger.debug("Zone read unavailable for managed folder %s", folder.id)
             return None
         zone_id = zone.id
         if zone_id == "default":

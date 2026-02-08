@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import logging
 import re
+import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
+
+if TYPE_CHECKING:
+    import pytest
 
 from dss_provisioner.cli import app
 from dss_provisioner.config.loader import ConfigError
@@ -347,3 +353,71 @@ class TestNoColor:
 
         result = runner.invoke(app, ["plan", "--no-color"])
         assert "\x1b[" not in result.stdout
+
+
+class TestConfigureLogging:
+    """Unit-test ``_configure_logging`` by mocking ``logging.basicConfig``.
+
+    Pytest's logging plugin installs a handler on the root logger, making
+    ``basicConfig`` a no-op without ``force=True``.  Rather than fighting
+    the handler lifecycle, we mock ``basicConfig`` and assert the call args.
+    """
+
+    @patch("logging.basicConfig")
+    def test_verbose_flag_configures_info(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        _configure_logging(1)
+        mock_bc.assert_called_once_with(
+            level=logging.INFO,
+            format="%(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+            force=True,
+        )
+
+    @patch("logging.basicConfig")
+    def test_double_verbose_configures_debug(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        _configure_logging(2)
+        mock_bc.assert_called_once_with(
+            level=logging.DEBUG,
+            format="%(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+            force=True,
+        )
+
+    @patch("logging.basicConfig")
+    def test_no_verbose_stays_unconfigured(self, mock_bc: MagicMock) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        _configure_logging(0)
+        mock_bc.assert_not_called()
+
+    @patch("logging.basicConfig")
+    def test_dss_log_env_var(self, mock_bc: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        monkeypatch.setenv("DSS_LOG", "DEBUG")
+        _configure_logging(0)
+        mock_bc.assert_called_once_with(
+            level=logging.DEBUG,
+            format="%(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+            force=True,
+        )
+
+    @patch("logging.basicConfig")
+    def test_dss_log_overrides_verbose(
+        self, mock_bc: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from dss_provisioner.cli import _configure_logging
+
+        monkeypatch.setenv("DSS_LOG", "WARNING")
+        _configure_logging(2)
+        mock_bc.assert_called_once_with(
+            level=logging.WARNING,
+            format="%(levelname)s %(name)s: %(message)s",
+            stream=sys.stderr,
+            force=True,
+        )

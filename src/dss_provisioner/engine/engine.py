@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
@@ -30,6 +31,8 @@ from dss_provisioner.engine.operations import (
 )
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
 from dss_provisioner.engine.variables import get_variables, resolve_variables
+
+logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[ResourceChange, Literal["start", "done"]], None]
 
@@ -110,6 +113,7 @@ class DSSEngine:
         state = State.load_or_create(self._state_path, project_key=self._project_key)
         if state.project_key != self._project_key:
             raise StateProjectMismatchError(self._project_key, state.project_key)
+        logger.debug("State loaded: serial=%d, %d resources", state.serial, len(state.resources))
         return state
 
     def _load_state_for_apply(self, plan: Plan) -> State:
@@ -123,6 +127,7 @@ class DSSEngine:
         )
 
     def _refresh_state_in_place(self, state: State) -> bool:
+        logger.debug("Refreshing state from DSS")
         changed = False
         ctx = self._ctx()
 
@@ -141,6 +146,7 @@ class DSSEngine:
                 inst.updated_at = datetime.now(UTC)
                 changed = True
 
+        logger.debug("State refreshed, changed=%s", changed)
         return changed
 
     def refresh(self, *, persist: bool = False) -> tuple[State, State]:
@@ -190,6 +196,7 @@ class DSSEngine:
 
         prior_inst = state.resources.get(addr)
         if prior_inst is None:
+            logger.debug("Classified %s as create", addr)
             return ResourceChange(
                 address=addr,
                 resource_type=resource.resource_type,
@@ -205,10 +212,12 @@ class DSSEngine:
             if _values_differ(v, prior.get(k))
         }
 
+        action = Action.UPDATE if diff else Action.NOOP
+        logger.debug("Classified %s as %s", addr, action.value)
         return ResourceChange(
             address=addr,
             resource_type=resource.resource_type,
-            action=Action.UPDATE if diff else Action.NOOP,
+            action=action,
             desired=desired_dump,
             prior=prior,
             planned=resolved_planned,
@@ -235,6 +244,9 @@ class DSSEngine:
     def plan(
         self, resources: Sequence[Resource], *, destroy: bool = False, refresh: bool = True
     ) -> Plan:
+        logger.info(
+            "Planning %d resources (destroy=%s, refresh=%s)", len(resources), destroy, refresh
+        )
         # Only lock when refresh may write state.
         lock_cm = StateLock(self._state_path) if refresh else contextlib.nullcontext()
         with lock_cm:
@@ -409,9 +421,11 @@ class DSSEngine:
             ctx = self._ctx()
             applied: list[ResourceChange] = []
             ordered_ops = self._operation_order(plan, state)
+            logger.info("Applying %d operations", len(ordered_ops))
 
             try:
                 for op in ordered_ops:
+                    logger.debug("Applying %s: %s", op.key, type(op).__name__)
                     if progress and op.change is not None:
                         progress(op.change, "start")
                     did_change = op.run(ctx=ctx, state=state, registry=self._registry)
