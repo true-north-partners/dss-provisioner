@@ -34,6 +34,7 @@ class DatasetResource(Resource):
     """Base resource for DSS datasets."""
 
     resource_type: ClassVar[str] = "dss_dataset"
+    namespace: ClassVar[str] = "dataset"
     sql_types: ClassVar[set[str]] = {"PostgreSQL", "Snowflake", "Oracle", "MySQL"}
 
     type: str

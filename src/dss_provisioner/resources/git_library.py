@@ -17,6 +17,7 @@ class GitLibraryResource(Resource):
     """
 
     resource_type: ClassVar[str] = "dss_git_library"
+    namespace: ClassVar[str] = "library"
     plan_priority: ClassVar[int] = 10
 
     repository: str = Field(min_length=1)

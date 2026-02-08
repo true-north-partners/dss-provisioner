@@ -25,6 +25,7 @@ class RecipeResource(Resource):
     """Base resource for DSS recipes."""
 
     resource_type: ClassVar[str] = "dss_recipe"
+    namespace: ClassVar[str] = "recipe"
 
     type: str
     inputs: Annotated[StrOrList, Ref()] = Field(default_factory=list)

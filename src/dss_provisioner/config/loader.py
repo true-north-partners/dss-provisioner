@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 from ruamel.yaml import YAML
@@ -10,9 +11,28 @@ from ruamel.yaml import YAML
 from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
 from dss_provisioner.config.schema import Config
 
+if TYPE_CHECKING:
+    from dss_provisioner.resources.base import Resource
+
 
 class ConfigError(Exception):
     """Raised for configuration loading / validation errors."""
+
+
+def _validate_unique_names(resources: list[Resource]) -> list[str]:
+    """Check that no two resources share the same name within a DSS namespace."""
+    groups: dict[str, dict[str, str]] = {}  # namespace → {name: first_address}
+    errors: list[str] = []
+    for r in resources:
+        seen = groups.setdefault(r.namespace, {})
+        if r.name in seen:
+            errors.append(
+                f"Duplicate {r.namespace} name '{r.name}': "
+                f"found in both {seen[r.name]} and {r.address}"
+            )
+        else:
+            seen[r.name] = r.address
+    return errors
 
 
 def load_config(path: Path | str) -> Config:
@@ -40,5 +60,9 @@ def load_config(path: Path | str) -> Config:
             config._module_resources = expand_modules(config.modules, config.config_dir)
         except ModuleExpansionError as exc:
             raise ConfigError(str(exc)) from exc
+
+    errors = _validate_unique_names(config.resources)
+    if errors:
+        raise ConfigError("\n".join(errors))
 
     return config

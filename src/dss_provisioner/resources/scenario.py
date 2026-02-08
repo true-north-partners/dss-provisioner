@@ -13,6 +13,7 @@ class ScenarioResource(Resource):
     """Base resource for DSS scenarios."""
 
     resource_type: ClassVar[str] = "dss_scenario"
+    namespace: ClassVar[str] = "scenario"
     plan_priority: ClassVar[int] = 200
 
     type: str

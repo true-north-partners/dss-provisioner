@@ -16,6 +16,7 @@ class CodeEnvResource(Resource):
     """
 
     resource_type: ClassVar[str] = "dss_code_env"
+    namespace: ClassVar[str] = "code_env"
     plan_priority: ClassVar[int] = 5
 
     name: Literal["code_envs"] = "code_envs"
