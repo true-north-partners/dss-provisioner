@@ -1306,12 +1306,25 @@
 <td><code>false</code></td>
 <td>Disable colored output</td>
 </tr>
+<tr>
+<td><code>-v</code> / <code>-vv</code></td>
+<td>—</td>
+<td>Increase log verbosity (<code>-v</code> info, <code>-vv</code> debug)</td>
+</tr>
 </tbody>
 </table>
+<p>Verbosity flags are top-level options and must appear <strong>before</strong> the command name:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>dss-provisioner<span class="w"> </span>-v<span class="w"> </span>plan<span class="w">          </span><span class="c1"># INFO-level logs on stderr</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>dss-provisioner<span class="w"> </span>-vv<span class="w"> </span>apply<span class="w">        </span><span class="c1"># DEBUG-level logs on stderr</span>
+</code></pre></div>
+<p>The <code>DSS_LOG</code> environment variable overrides <code>-v</code> flags and accepts any Python logging level name (<code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>, <code>CRITICAL</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">DSS_LOG</span><span class="o">=</span>DEBUG<span class="w"> </span>dss-provisioner<span class="w"> </span>plan<span class="w">   </span><span class="c1"># same as -vv</span>
+</code></pre></div>
+<p>Logs are scoped to <code>dss_provisioner.*</code> loggers and written to stderr so they do not interfere with command output on stdout.</p>
 <h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <h3 id="plan"><code>plan</code><a class="headerlink" href="#plan" title="Permanent link">&para;</a></h3>
 <p>Show changes required by the current configuration.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>dss-provisioner<span class="w"> </span>plan<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>dss-provisioner<span class="w"> </span>plan<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1337,7 +1350,7 @@
 <p>By default, <code>plan</code> refreshes state from the live DSS instance before computing the diff. Use <code>--no-refresh</code> to plan against the local state file only.</p>
 <h3 id="apply"><code>apply</code><a class="headerlink" href="#apply" title="Permanent link">&para;</a></h3>
 <p>Apply the changes required by the current configuration.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>dss-provisioner<span class="w"> </span>apply<span class="w"> </span><span class="o">[</span>PLAN_FILE<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>dss-provisioner<span class="w"> </span>apply<span class="w"> </span><span class="o">[</span>PLAN_FILE<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1368,7 +1381,7 @@
 <p>If <code>PLAN_FILE</code> is provided, apply uses the saved plan (checking for staleness). Otherwise, it runs <code>plan</code> + <code>apply</code> in one step.</p>
 <h3 id="destroy"><code>destroy</code><a class="headerlink" href="#destroy" title="Permanent link">&para;</a></h3>
 <p>Destroy all managed resources.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>dss-provisioner<span class="w"> </span>destroy<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>dss-provisioner<span class="w"> </span>destroy<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1389,7 +1402,7 @@
 <p>Plans deletion of all resources tracked in the state file, then applies in reverse dependency order.</p>
 <h3 id="refresh"><code>refresh</code><a class="headerlink" href="#refresh" title="Permanent link">&para;</a></h3>
 <p>Refresh state from the live DSS instance.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>dss-provisioner<span class="w"> </span>refresh<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>dss-provisioner<span class="w"> </span>refresh<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1410,12 +1423,12 @@
 <p>Reads the current state of each tracked resource from DSS and updates the local state file. Useful after manual changes in the DSS UI.</p>
 <h3 id="drift"><code>drift</code><a class="headerlink" href="#drift" title="Permanent link">&para;</a></h3>
 <p>Show drift between state and the live DSS instance.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>dss-provisioner<span class="w"> </span>drift<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>dss-provisioner<span class="w"> </span>drift<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <p>Read-only command that compares the state file against live DSS. Does not modify state. Shows which resources have drifted and what changed.</p>
 <h3 id="validate"><code>validate</code><a class="headerlink" href="#validate" title="Permanent link">&para;</a></h3>
 <p>Validate the configuration file.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>dss-provisioner<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>dss-provisioner<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <p>Parses and validates the YAML configuration without connecting to DSS. Useful in CI pipelines or pre-commit hooks.</p>
 
