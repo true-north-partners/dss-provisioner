@@ -6,7 +6,9 @@ import contextlib
 import json
 import logging
 import os
+import shutil
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import dataikuapi
@@ -16,14 +18,99 @@ from dss_provisioner.config.schema import Config, ProviderConfig
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
-    from pathlib import Path
 
     from dataikuapi.dss.project import DSSProject
 
 logger = logging.getLogger(__name__)
 
+_KEYRING_SERVICE = "dss-provisioner-e2e"
+
 # ---------------------------------------------------------------------------
-# pytest CLI options
+# DSS discovery helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_host(config: pytest.Config) -> str:
+    return (
+        config.getoption("--e2e-host", default=None)
+        or os.environ.get("DSS_HOST", "http://localhost:11200")
+    ).rstrip("/")
+
+
+def _find_dsscli() -> str | None:
+    """Find the dsscli binary: $PATH → well-known DSS home locations."""
+    found = shutil.which("dsscli")
+    if found:
+        return found
+    candidates = [
+        Path(os.environ["DIP_HOME"]) / "bin" / "dsscli" if "DIP_HOME" in os.environ else None,
+        Path.home() / "Library" / "DataScienceStudio" / "dss_home" / "bin" / "dsscli",  # macOS
+        Path.home() / "dss_home" / "bin" / "dsscli",  # Linux default
+    ]
+    for path in candidates:
+        if path and path.is_file():
+            return str(path)
+    return None
+
+
+def _provision_api_key() -> str | None:
+    """Provision an admin API key via dsscli. Returns the key or None."""
+    dsscli = _find_dsscli()
+    if not dsscli:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                dsscli,
+                "api-key-create",
+                "--output",
+                "json",
+                "--label",
+                "provisioner-e2e",
+                "--admin",
+                "true",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = json.loads(result.stdout)
+        # dsscli returns a JSON array with one element
+        if isinstance(data, list):
+            data = data[0]
+        return data["key"]
+    except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError, IndexError):
+        return None
+
+
+def _keyring_get(host: str) -> str | None:
+    """Read API key from keyring, or None if unavailable."""
+    with contextlib.suppress(Exception):
+        import keyring
+
+        return keyring.get_password(_KEYRING_SERVICE, host)
+    return None
+
+
+def _keyring_set(host: str, key: str) -> None:
+    """Store API key in keyring (best-effort)."""
+    with contextlib.suppress(Exception):
+        import keyring
+
+        keyring.set_password(_KEYRING_SERVICE, host, key)
+
+
+def _is_community_edition(host: str, api_key: str) -> bool | None:
+    """Return True if community, False if enterprise, None if undetermined."""
+    try:
+        status = dataikuapi.DSSClient(host, api_key).get_licensing_status()
+        return not status.get("ceEnterprise", False)
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# pytest CLI options + hooks
 # ---------------------------------------------------------------------------
 
 
@@ -41,45 +128,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Auto-skip enterprise tests on community edition
-# ---------------------------------------------------------------------------
-
-
-def _resolve_host(config: pytest.Config) -> str:
-    return (
-        config.getoption("--e2e-host", default=None)
-        or os.environ.get("DSS_HOST", "http://localhost:11200")
-    ).rstrip("/")
-
-
-def _resolve_api_key_for_collection(host: str) -> str | None:
-    """Best-effort API key resolution at collection time (env → keyring)."""
-    key = os.environ.get("DSS_API_KEY")
-    if key:
-        return key
-    with contextlib.suppress(Exception):
-        import keyring
-
-        return keyring.get_password("dss-provisioner-e2e", host)
-    return None
-
-
-def _is_community_edition(host: str, api_key: str) -> bool | None:
-    """Return True if community, False if enterprise, None if undetermined."""
-    try:
-        client = dataikuapi.DSSClient(host, api_key)
-        status = client.get_licensing_status()
-        return not status.get("ceEnterprise", False)
-    except Exception:
-        return None
-
-
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Auto-skip @pytest.mark.enterprise tests on community edition."""
     if not any("enterprise" in item.keywords for item in items):
         return
     host = _resolve_host(config)
-    api_key = _resolve_api_key_for_collection(host)
+    api_key = os.environ.get("DSS_API_KEY") or _keyring_get(host) or _provision_api_key()
     is_community = _is_community_edition(host, api_key) if api_key else None
     if is_community is True:
         skip = pytest.mark.skip(reason="requires enterprise DSS edition")
@@ -100,51 +154,29 @@ def dss_host(request: pytest.FixtureRequest) -> str:
 
 @pytest.fixture(scope="session")
 def dss_api_key(dss_host: str) -> str:
+    """Resolve API key: DSS_API_KEY env → keyring → dsscli provisioning."""
     # 1. Explicit env var (CI / override)
     key = os.environ.get("DSS_API_KEY")
     if key:
         return key
 
-    # 2. Keyring lookup
-    with contextlib.suppress(Exception):
-        import keyring
+    # 2. Keyring lookup (validate stored key still works)
+    stored = _keyring_get(dss_host)
+    if stored:
+        try:
+            dataikuapi.DSSClient(dss_host, stored).get_auth_info()
+            return stored
+        except Exception:
+            logger.info("Stored keyring API key is invalid, re-provisioning")
 
-        stored = keyring.get_password("dss-provisioner-e2e", dss_host)
-        if stored:
-            try:
-                dataikuapi.DSSClient(dss_host, stored).get_auth_info()
-                return stored
-            except Exception:
-                logger.info("Stored keyring API key is invalid, re-provisioning")
+    # 3. Provision via dsscli (admin key needed for cross-resource-type operations)
+    provisioned = _provision_api_key()
+    if provisioned:
+        _keyring_set(dss_host, provisioned)
+        return provisioned
 
-    # 3. Provision via dsscli (admin key required for cross-resource-type operations)
-    try:
-        result = subprocess.run(
-            [
-                "dsscli",
-                "api-key-create",
-                "--output",
-                "json",
-                "--label",
-                "provisioner-e2e",
-                "--admin",
-                "true",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
-        pytest.skip(f"No API key available: set DSS_API_KEY env var or install dsscli ({exc})")
-    key = json.loads(result.stdout)["key"]
-
-    # Store in keyring for next run
-    with contextlib.suppress(Exception):
-        import keyring
-
-        keyring.set_password("dss-provisioner-e2e", dss_host, key)
-
-    return key
+    pytest.skip("No API key available: set DSS_API_KEY env var or install dsscli")
+    return ""  # unreachable; pytest.skip raises
 
 
 @pytest.fixture(scope="session")
@@ -158,13 +190,9 @@ def dss_client(dss_host: str, dss_api_key: str) -> dataikuapi.DSSClient:
 
 
 @pytest.fixture(scope="session")
-def dss_is_community(dss_client: dataikuapi.DSSClient) -> bool | None:
+def dss_is_community(dss_host: str, dss_api_key: str) -> bool | None:
     """True if community, False if enterprise, None if undetermined."""
-    try:
-        status = dss_client.get_licensing_status()
-        return not status.get("ceEnterprise", False)
-    except Exception:
-        return None
+    return _is_community_edition(dss_host, dss_api_key)
 
 
 @pytest.fixture(scope="session")
