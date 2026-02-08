@@ -16,8 +16,10 @@ from dss_provisioner.resources.markers import (
     Compare,
     DSSParam,
     Ref,
+    ResourceRef,
     build_dss_params,
     collect_compare_strategies,
+    collect_ref_specs,
     collect_refs,
     extract_dss_attrs,
 )
@@ -27,6 +29,18 @@ from dss_provisioner.resources.recipe import RecipeResource
 
 
 class TestCollectRefs:
+    def test_collect_ref_specs_preserves_type_metadata(self) -> None:
+        class M(BaseModel):
+            zone: Annotated[str, Ref("dss_zone")] = ""
+            inputs: Annotated[list[str], Ref()] = Field(default_factory=list)
+
+        m = M(zone="raw", inputs=["a", "b"])
+        assert collect_ref_specs(m) == [
+            ResourceRef(name="raw", resource_type="dss_zone"),
+            ResourceRef(name="a", resource_type=None),
+            ResourceRef(name="b", resource_type=None),
+        ]
+
     def test_string_field(self) -> None:
         """Single str field with Ref() returns [value]."""
 

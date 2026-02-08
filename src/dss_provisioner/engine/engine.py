@@ -186,19 +186,25 @@ class DSSEngine:
 
     @staticmethod
     def _resolve_deps(desired_by_addr: dict[str, Resource]) -> dict[str, list[str]]:
-        """Build dependency map: explicit depends_on + implicit from reference_names.
+        """Build dependency map: explicit depends_on + implicit from ``Ref`` markers.
 
         Returns addr → full dep list without mutating the Resource objects.
         """
         name_to_addrs: dict[str, list[str]] = {}
+        typed_name_to_addrs: dict[tuple[str, str], list[str]] = {}
         for addr, r in desired_by_addr.items():
             name_to_addrs.setdefault(r.name, []).append(addr)
+            typed_name_to_addrs.setdefault((r.resource_type, r.name), []).append(addr)
 
         dep_map: dict[str, list[str]] = {}
         for addr, r in desired_by_addr.items():
             deps = list(r.depends_on)
-            for ref in r.reference_names():
-                for ref_addr in name_to_addrs.get(ref, []):
+            for ref in r.references():
+                if ref.resource_type is not None:
+                    ref_addrs = typed_name_to_addrs.get((ref.resource_type, ref.name), [])
+                else:
+                    ref_addrs = name_to_addrs.get(ref.name, [])
+                for ref_addr in ref_addrs:
                     if ref_addr != addr and ref_addr not in deps:
                         deps.append(ref_addr)
             dep_map[addr] = deps

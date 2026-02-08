@@ -28,44 +28,81 @@ class EngineContext:
 class PlanContext:
     """Merged view of desired and existing resources for plan-level validation.
 
-    Provides name-based attribute lookup across both planned (desired) and
-    existing (state) resources, with desired taking precedence.
+    Provides name-based lookups across both planned (desired) and existing
+    (state) resources, with desired taking precedence.
     """
 
     def __init__(self, all_desired: Mapping[str, Resource], state: State) -> None:
-        self._by_name: dict[str, Resource | ResourceInstance] = {
-            i.name: i for i in state.resources.values()
-        }
-        # Desired takes precedence over state.
+        # Preserve all candidates per name (cross-namespace name reuse is valid),
+        # while ensuring desired objects take precedence over state.
+        self._by_name: dict[str, list[Resource | ResourceInstance]] = {}
+        for i in state.resources.values():
+            self._by_name.setdefault(i.name, []).append(i)
         for r in all_desired.values():
-            self._by_name[r.name] = r
+            entries = [e for e in self._by_name.get(r.name, []) if e.address != r.address]
+            self._by_name[r.name] = [r, *entries]
         self._all_addresses: set[str] = set(all_desired.keys()) | set(state.resources.keys())
+
+    @staticmethod
+    def _resource_type(item: Resource | ResourceInstance) -> str:
+        if isinstance(item, ResourceInstance):
+            return item.resource_type
+        return item.resource_type
+
+    @classmethod
+    def _matches(
+        cls,
+        item: Resource | ResourceInstance,
+        *,
+        resource_type: str | None = None,
+        resource_type_suffix: str | None = None,
+    ) -> bool:
+        item_resource_type = cls._resource_type(item)
+        if resource_type is not None and item_resource_type != resource_type:
+            return False
+        return resource_type_suffix is None or item_resource_type.endswith(resource_type_suffix)
 
     def address_exists(self, address: str) -> bool:
         """Check if an address exists in desired or state."""
         return address in self._all_addresses
 
-    def has_resource(self, name: str) -> bool:
-        """Check if a resource with this name exists."""
-        return name in self._by_name
+    def has_resource(
+        self,
+        name: str,
+        *,
+        resource_type: str | None = None,
+        resource_type_suffix: str | None = None,
+    ) -> bool:
+        """Check if a matching resource with this name exists."""
+        return any(
+            self._matches(
+                item,
+                resource_type=resource_type,
+                resource_type_suffix=resource_type_suffix,
+            )
+            for item in self._by_name.get(name, [])
+        )
 
-    def get_resource_type(self, name: str) -> str | None:
-        """Return the resource_type for a named resource, or None if not found."""
-        r = self._by_name.get(name)
-        if r is None:
-            return None
-        if isinstance(r, ResourceInstance):
-            return r.resource_type
-        return r.resource_type
-
-    def get_attr(self, name: str, attr: str) -> Any:
-        """Look up a resource attribute by name."""
-        r = self._by_name.get(name)
-        if r is None:
-            return None
-        if isinstance(r, ResourceInstance):
-            return r.attributes.get(attr)
-        return getattr(r, attr, None)
+    def get_attr(
+        self,
+        name: str,
+        attr: str,
+        *,
+        resource_type: str | None = None,
+        resource_type_suffix: str | None = None,
+    ) -> Any:
+        """Look up an attribute from the first matching named resource."""
+        for item in self._by_name.get(name, []):
+            if not self._matches(
+                item,
+                resource_type=resource_type,
+                resource_type_suffix=resource_type_suffix,
+            ):
+                continue
+            if isinstance(item, ResourceInstance):
+                return item.attributes.get(attr)
+            return getattr(item, attr, None)
+        return None
 
 
 class ResourceHandler(Generic[R]):

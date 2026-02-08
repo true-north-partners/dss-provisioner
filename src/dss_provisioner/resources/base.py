@@ -4,7 +4,7 @@ from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from dss_provisioner.resources.markers import Compare, collect_refs
+from dss_provisioner.resources.markers import Compare, ResourceRef, collect_ref_specs, collect_refs
 
 
 class Resource(BaseModel):
@@ -32,6 +32,10 @@ class Resource(BaseModel):
     def reference_names(self) -> list[str]:
         """Names of other resources this one references (auto-collected from Ref markers)."""
         return collect_refs(self)
+
+    def references(self) -> list[ResourceRef]:
+        """Typed references declared on this resource."""
+        return collect_ref_specs(self)
 
     @computed_field
     @property

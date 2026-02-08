@@ -116,7 +116,9 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
     ) -> list[str]:
         _ = ctx
         errors: list[str] = []
-        if desired.zone is not None and plan_ctx.get_resource_type(desired.zone) != "dss_zone":
+        if desired.zone is not None and not plan_ctx.has_resource(
+            desired.zone, resource_type="dss_zone"
+        ):
             errors.append(
                 f"Managed folder '{desired.name}' references unknown zone '{desired.zone}'"
             )
