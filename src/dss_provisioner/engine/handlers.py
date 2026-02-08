@@ -45,8 +45,6 @@ class PlanContext:
 
     @staticmethod
     def _resource_type(item: Resource | ResourceInstance) -> str:
-        if isinstance(item, ResourceInstance):
-            return item.resource_type
         return item.resource_type
 
     @classmethod
