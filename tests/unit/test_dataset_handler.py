@@ -230,7 +230,7 @@ class TestCreateFilesystemDataset:
 
 
 class TestCreateUploadDataset:
-    def test_upload_creates_managed(
+    def test_upload_uses_create_dataset(
         self,
         ctx: EngineContext,
         handler: DatasetHandler,
@@ -240,15 +240,11 @@ class TestCreateUploadDataset:
         raw = _make_raw("UploadedFiles", managed=True)
         mock_dataset.get_settings.return_value.get_raw.return_value = raw
 
-        builder = MagicMock()
-        builder.create.return_value = mock_dataset
-        mock_project.new_managed_dataset.return_value = builder
-
         desired = UploadDatasetResource(name="my_ds")
         handler.create(ctx, desired)
 
-        mock_project.new_managed_dataset.assert_called_once_with("my_ds")
-        builder.create.assert_called_once()
+        mock_project.create_dataset.assert_called_once_with("my_ds", "UploadedFiles", params={})
+        mock_project.new_managed_dataset.assert_not_called()
 
 
 class TestCreateSetsSchemaWhenColumnsProvided:

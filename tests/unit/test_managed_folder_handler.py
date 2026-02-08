@@ -134,9 +134,10 @@ class TestCreate:
         raw = _make_raw()
         mock_folder.get_settings.return_value.get_raw.return_value = raw
 
-        desired = ManagedFolderResource(
+        desired = FilesystemManagedFolderResource(
             name="my_folder",
-            type="Filesystem",
+            connection="filesystem_managed",
+            path="/data/folder",
             description="My models",
             tags=["ml", "prod"],
         )
@@ -152,9 +153,25 @@ class TestCreate:
         mock_project: MagicMock,  # noqa: ARG002
         mock_folder: MagicMock,
     ) -> None:
-        desired = ManagedFolderResource(name="my_folder", type="Filesystem", zone="raw")
+        desired = FilesystemManagedFolderResource(
+            name="my_folder", connection="filesystem_managed", path="/data/folder", zone="raw"
+        )
         handler.create(ctx, desired)
         mock_folder.move_to_zone.assert_called_once_with("raw")
+
+    def test_upload_omits_connection_name(
+        self,
+        ctx: EngineContext,
+        handler: ManagedFolderHandler,
+        mock_project: MagicMock,
+        mock_folder: MagicMock,  # noqa: ARG002
+    ) -> None:
+        desired = UploadManagedFolderResource(name="uploads")
+        handler.create(ctx, desired)
+        mock_project.create_managed_folder.assert_called_once_with(
+            "uploads",
+            folder_type="UploadedFiles",
+        )
 
     def test_no_zone_when_not_specified(
         self,
@@ -163,7 +180,9 @@ class TestCreate:
         mock_project: MagicMock,  # noqa: ARG002
         mock_folder: MagicMock,
     ) -> None:
-        desired = ManagedFolderResource(name="my_folder", type="Filesystem")
+        desired = FilesystemManagedFolderResource(
+            name="my_folder", connection="filesystem_managed", path="/data/folder"
+        )
         handler.create(ctx, desired)
         mock_folder.move_to_zone.assert_not_called()
 

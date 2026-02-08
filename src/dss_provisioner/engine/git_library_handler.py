@@ -48,6 +48,7 @@ class GitLibraryHandler(ResourceHandler["GitLibraryResource"]):
             checkout=desired.checkout,
             path_in_git_repository=desired.path,
             add_to_python_path=desired.add_to_python_path,
+            as_type="object",
         )
         future.wait_for_result()
         result = self._get_ref(ctx, desired.name)

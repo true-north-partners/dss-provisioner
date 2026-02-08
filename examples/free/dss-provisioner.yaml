@@ -1,0 +1,99 @@
+provider:
+  # host: set DSS_HOST env var
+  project: FREE_DEMO
+
+state_path: .dss-state.free.json
+
+variables:
+  standard:
+    env: dev
+    owner: analytics
+  local:
+    smoke: "true"
+
+code_envs: {}
+
+libraries:
+  - name: shared_utils
+    repository: https://github.com/true-north-partners/dss-shared-utils.git
+    checkout: main
+    path: python
+
+managed_folders:
+  - name: artifacts
+    type: filesystem
+    connection: filesystem_folders
+    path: "${projectKey}/artifacts"
+
+
+datasets:
+  - name: customers_raw
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/raw/customers"
+    format_type: parquet
+
+  - name: customers_curated
+    type: upload
+
+  - name: customers_published
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/published/customers"
+    managed: true
+    format_type: parquet
+
+  - name: qa_report
+    type: upload
+
+recipes:
+  - name: clean_customers
+    type: python
+    inputs: customers_raw
+    outputs: customers_curated
+    code_file: ./recipes/clean_customers.py
+
+  - name: customers_quality
+    type: python
+    inputs: customers_curated
+    outputs: qa_report
+    code_file: ./recipes/customers_quality.py
+
+  - name: publish_customers
+    type: sync
+    inputs: customers_curated
+    outputs: customers_published
+
+scenarios:
+  - name: daily_build
+    type: step_based
+    active: true
+    steps:
+      - type: build_flowitem
+        name: Build published customers
+        params:
+          builds:
+            - type: DATASET
+              itemId: customers_published
+              partitionsSpec: ""
+
+  - name: smoke_tests
+    type: python
+    active: false
+    code_file: ./scenarios/smoke_tests.py
+
+modules:
+  - call: modules.pipelines:stage_pipeline
+    with:
+      name: churn
+      source_dataset: customers_raw
+      output_dataset: churn_features
+
+  - call: modules.pipelines:stage_pipeline
+    instances:
+      retention:
+        source_dataset: customers_raw
+        output_dataset: retention_features
+      ltv:
+        source_dataset: customers_raw
+        output_dataset: ltv_features

@@ -1,0 +1,17 @@
+provider:
+  project: ANALYTICS_APP
+
+state_path: .dss-state.enterprise.sharing.json
+
+# Apply this after the base enterprise stack has been created.
+exposed_objects:
+  - name: customers_curated
+    type: dataset
+    target_projects:
+      - REPORTING
+      - SERVING
+
+  - name: model_artifacts
+    type: managed_folder
+    target_projects:
+      - SERVING

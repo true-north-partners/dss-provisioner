@@ -126,10 +126,13 @@ class ManagedFolderHandler(ResourceHandler["ManagedFolderResource"]):
 
     def create(self, ctx: EngineContext, desired: ManagedFolderResource) -> dict[str, Any]:
         project = self._get_project(ctx)
+        create_kwargs: dict[str, Any] = {}
+        if desired.connection is not None:
+            create_kwargs["connection_name"] = desired.connection
         folder = project.create_managed_folder(
             desired.name,
             folder_type=desired.type,
-            connection_name=desired.connection,
+            **create_kwargs,
         )
 
         settings = folder.get_settings()

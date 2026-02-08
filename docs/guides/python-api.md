@@ -2,6 +2,12 @@
 
 dss-provisioner can be used as a Python library for programmatic access. All public functions are available from the `dss_provisioner.config` module.
 
+## Canonical project example
+
+See [`examples/python_api`](https://github.com/true-north-partners/dss-provisioner/tree/main/examples/python_api)
+for a complete layout with config, module code, recipe files, and an executable `app.py`
+that performs `load -> plan -> apply`.
+
 ## Basic usage
 
 ```python

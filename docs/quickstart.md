@@ -75,6 +75,7 @@ dss-provisioner apply plan.json
 ## What's next?
 
 - [Architecture](concepts/architecture.md) — understand the plan/apply engine
+- [End-to-end examples](guides/examples.md) — pick a canonical Free or Enterprise starter
 - [YAML configuration](guides/yaml-config.md) — full config reference
 - [Writing modules](guides/modules.md) — create reusable resource generators in Python
 - [Python API](guides/python-api.md) — use dss-provisioner as a library
