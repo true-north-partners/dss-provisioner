@@ -50,6 +50,7 @@ nav:
   - Guides:
       - guides/index.md
       - Installation: guides/installation.md
+      - End-to-end examples: guides/examples.md
       - YAML configuration: guides/yaml-config.md
       - Writing modules: guides/modules.md
       - Python API: guides/python-api.md

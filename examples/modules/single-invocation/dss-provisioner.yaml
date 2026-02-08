@@ -1,0 +1,15 @@
+provider:
+  project: MODULE_DEMO
+
+datasets:
+  - name: customers_raw
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/raw/customers"
+
+modules:
+  - call: modules.pipelines:feature_pipeline
+    with:
+      name: customers
+      source_dataset: customers_raw
+      output_dataset: customers_features

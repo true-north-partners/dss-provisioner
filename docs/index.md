@@ -73,6 +73,7 @@ Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 ## Next steps
 
 - **[Quick start](quickstart.md)** — Get up and running in 5 minutes
+- **[End-to-end examples](guides/examples.md)** — Choose canonical Free/Enterprise and Python API examples
 - **[Architecture](concepts/architecture.md)** — Understand the plan/apply engine and state model
 - **[YAML configuration](guides/yaml-config.md)** — Full config reference for all resource types
 - **[Writing modules](guides/modules.md)** — Create reusable resource generators in Python

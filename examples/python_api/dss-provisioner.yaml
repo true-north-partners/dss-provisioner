@@ -1,0 +1,36 @@
+provider:
+  project: API_DEMO
+
+state_path: .dss-state.api.json
+
+variables:
+  standard:
+    env: dev
+
+managed_folders:
+  - name: features_folder
+    type: filesystem
+    connection: filesystem_folders
+    path: "${projectKey}/features"
+
+datasets:
+  - name: events_raw
+    type: filesystem
+    connection: filesystem_managed
+    path: "${projectKey}/raw/events"
+
+  - name: events_features
+    type: upload
+
+recipes:
+  - name: prepare_features
+    type: python
+    inputs: events_raw
+    outputs: events_features
+    code_file: ./recipes/prepare_features.py
+
+modules:
+  - call: modules.pipelines:scoring_pipeline
+    with:
+      name: churn
+      source_dataset: events_features

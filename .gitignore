@@ -188,6 +188,11 @@ cython_debug/
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
+# dss-provisioner state files
+.dss-state*.json
+.dss-state*.json.backup
+.dss-state*.json.lock
+
 # Ruff stuff:
 .ruff_cache/
 

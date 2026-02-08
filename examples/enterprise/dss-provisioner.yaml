@@ -1,0 +1,135 @@
+provider:
+  # host: set DSS_HOST env var
+  project: ANALYTICS_APP
+
+state_path: .dss-state.enterprise.json
+
+variables:
+  standard:
+    env: prod
+    data_tier: gold
+
+code_envs: {}
+
+zones:
+  - name: raw
+    color: "#4a90d9"
+  - name: curated
+    color: "#36a269"
+  - name: serving
+    color: "#f49d37"
+
+libraries:
+  - name: shared_transformations
+    repository: git@github.com:true-north-partners/dss-shared-transformations.git
+    checkout: main
+    path: python
+
+managed_folders:
+  - name: model_artifacts
+    type: filesystem
+    connection: s3_managed
+    path: "${projectKey}/models"
+    zone: serving
+
+  - name: partner_drop
+    type: upload
+    zone: raw
+
+datasets:
+  - name: customers_raw
+    type: snowflake
+    connection: snowflake_prod
+    schema_name: RAW
+    table: CUSTOMERS
+    zone: raw
+
+  - name: orders_raw
+    type: oracle
+    connection: oracle_dw
+    schema_name: DW
+    table: ORDERS
+    zone: raw
+
+  - name: customers_curated
+    type: filesystem
+    connection: s3_managed
+    path: "${projectKey}/curated/customers"
+    managed: true
+    format_type: parquet
+    zone: curated
+
+  - name: reporting_customers
+    type: filesystem
+    connection: s3_managed
+    path: "${projectKey}/serving/customers"
+    managed: true
+    format_type: parquet
+    zone: serving
+
+  - name: qa_metrics
+    type: upload
+    zone: curated
+
+foreign_datasets:
+  - name: shared_reference_customers
+    source_project: CORE_DATA
+    source_name: customers_golden
+
+foreign_managed_folders:
+  - name: shared_baseline_models
+    source_project: CORE_ML
+    source_name: baseline_models
+
+recipes:
+  - name: enrich_customers
+    type: python
+    inputs:
+      - customers_raw
+      - shared_reference_customers
+    outputs: customers_curated
+    zone: curated
+    code_file: ./recipes/enrich_customers.py
+
+  - name: qa_checks
+    type: sql_query
+    inputs: customers_raw
+    outputs: qa_metrics
+    zone: curated
+    code_file: ./recipes/qa_checks.sql
+
+  - name: publish_reporting
+    type: sync
+    inputs: customers_curated
+    outputs: reporting_customers
+    zone: serving
+
+scenarios:
+  - name: orchestrate_hourly
+    type: step_based
+    triggers:
+      - type: temporal
+        params:
+          frequency: Hourly
+          minute: 5
+    steps:
+      - type: build_flowitem
+        name: Build reporting customers
+        params:
+          builds:
+            - type: DATASET
+              itemId: reporting_customers
+              partitionsSpec: ""
+
+  - name: ops_watchdog
+    type: python
+    active: true
+    code_file: ./scenarios/ops_watchdog.py
+
+modules:
+  - call: modules.enterprise:serving_stack
+    instances:
+      churn:
+        source_dataset: customers_curated
+      ltv:
+        source_dataset: customers_curated

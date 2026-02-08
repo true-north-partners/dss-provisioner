@@ -2,6 +2,8 @@
 
 Complete reference for the `dss-provisioner.yaml` configuration file.
 
+For full copy/paste starter projects, see [End-to-end examples](examples.md).
+
 ## Minimal example
 
 ```yaml
