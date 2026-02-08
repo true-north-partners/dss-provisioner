@@ -6,7 +6,7 @@ import contextlib
 import hashlib
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -104,6 +104,69 @@ def _compute_config_digest(resources: Sequence[Resource]) -> str:
         )
     items.sort(key=lambda x: x["address"])
     return _sha256_hex(_canonical_json(items))
+
+
+_FOREIGN_RESOURCE_TYPES = {"dss_foreign_dataset", "dss_foreign_managed_folder"}
+_RECIPE_RESOURCE_TYPES = {
+    "dss_recipe",
+    "dss_sync_recipe",
+    "dss_python_recipe",
+    "dss_sql_query_recipe",
+}
+
+
+def _foreign_full_ref(attrs: Mapping[str, Any]) -> str | None:
+    full_ref = attrs.get("full_ref")
+    if isinstance(full_ref, str) and full_ref:
+        return full_ref
+
+    source_project = attrs.get("source_project")
+    source_name = attrs.get("source_name")
+    if isinstance(source_project, str) and isinstance(source_name, str):
+        return f"{source_project}.{source_name}"
+    return None
+
+
+def _build_foreign_alias_map(
+    desired_by_addr: Mapping[str, Resource],
+    state: State,
+) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+
+    for resource in desired_by_addr.values():
+        if resource.resource_type not in _FOREIGN_RESOURCE_TYPES:
+            continue
+        source_project = getattr(resource, "source_project", None)
+        source_name = getattr(resource, "source_name", None)
+        if isinstance(source_project, str) and isinstance(source_name, str):
+            aliases[resource.name] = f"{source_project}.{source_name}"
+
+    for inst in state.resources.values():
+        if inst.resource_type not in _FOREIGN_RESOURCE_TYPES:
+            continue
+        if inst.name in aliases:
+            continue
+        full_ref = _foreign_full_ref(inst.attributes)
+        if full_ref is not None:
+            aliases[inst.name] = full_ref
+    return aliases
+
+
+def _normalize_recipe_refs(resource: Resource, aliases: Mapping[str, str]) -> Resource:
+    if resource.resource_type not in _RECIPE_RESOURCE_TYPES:
+        return resource
+
+    raw_inputs = getattr(resource, "inputs", [])
+    raw_outputs = getattr(resource, "outputs", [])
+    if not isinstance(raw_inputs, list) or not isinstance(raw_outputs, list):
+        return resource
+
+    inputs = [aliases.get(ref, ref) for ref in raw_inputs]
+    outputs = [aliases.get(ref, ref) for ref in raw_outputs]
+    if inputs == raw_inputs and outputs == raw_outputs:
+        return resource
+
+    return resource.model_copy(update={"inputs": inputs, "outputs": outputs})
 
 
 class DSSEngine:
@@ -325,6 +388,7 @@ class DSSEngine:
                 changes = self._plan_deletes(state, state_addrs)
             else:
                 variables = get_variables(ctx)
+                foreign_aliases = _build_foreign_alias_map(desired_by_addr, state)
                 topo_deps = {a: [d for d in ds if d in desired_addrs] for a, ds in dep_map.items()}
                 priorities = {addr: r.plan_priority for addr, r in desired_by_addr.items()}
                 order = DependencyGraph(
@@ -332,7 +396,11 @@ class DSSEngine:
                 ).topological_order()
                 changes = [
                     self._classify_change(
-                        addr, desired_by_addr[addr], state, dep_map[addr], variables
+                        addr,
+                        _normalize_recipe_refs(desired_by_addr[addr], foreign_aliases),
+                        state,
+                        dep_map[addr],
+                        variables,
                     )
                     for addr in order
                 ]

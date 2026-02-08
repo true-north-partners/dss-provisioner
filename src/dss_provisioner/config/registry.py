@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from dss_provisioner.engine.code_env_handler import CodeEnvHandler
 from dss_provisioner.engine.dataset_handler import DatasetHandler
+from dss_provisioner.engine.exposed_object_handler import (
+    ExposedDatasetHandler,
+    ExposedManagedFolderHandler,
+)
+from dss_provisioner.engine.foreign_handler import (
+    ForeignDatasetHandler,
+    ForeignManagedFolderHandler,
+)
 from dss_provisioner.engine.git_library_handler import GitLibraryHandler
 from dss_provisioner.engine.managed_folder_handler import ManagedFolderHandler
 from dss_provisioner.engine.recipe_handler import (
@@ -26,6 +34,11 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.exposed_object import (
+    ExposedDatasetResource,
+    ExposedManagedFolderResource,
+)
+from dss_provisioner.resources.foreign import ForeignDatasetResource, ForeignManagedFolderResource
 from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.managed_folder import (
     FilesystemManagedFolderResource,
@@ -65,6 +78,12 @@ def default_registry() -> ResourceTypeRegistry:
     registry.register(OracleDatasetResource, dataset_handler)
     registry.register(FilesystemDatasetResource, dataset_handler)
     registry.register(UploadDatasetResource, dataset_handler)
+
+    registry.register(ExposedDatasetResource, ExposedDatasetHandler())
+    registry.register(ExposedManagedFolderResource, ExposedManagedFolderHandler())
+
+    registry.register(ForeignDatasetResource, ForeignDatasetHandler())
+    registry.register(ForeignManagedFolderResource, ForeignManagedFolderHandler())
 
     registry.register(SyncRecipeResource, SyncRecipeHandler())
     registry.register(PythonRecipeResource, PythonRecipeHandler())

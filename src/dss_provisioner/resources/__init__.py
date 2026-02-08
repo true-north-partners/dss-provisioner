@@ -9,6 +9,12 @@ from dss_provisioner.resources.dataset import (
     SnowflakeDatasetResource,
     UploadDatasetResource,
 )
+from dss_provisioner.resources.exposed_object import (
+    ExposedDatasetResource,
+    ExposedManagedFolderResource,
+    ExposedObjectResource,
+)
+from dss_provisioner.resources.foreign import ForeignDatasetResource, ForeignManagedFolderResource
 from dss_provisioner.resources.git_library import GitLibraryResource
 from dss_provisioner.resources.loader import resolve_code_files
 from dss_provisioner.resources.managed_folder import (
@@ -34,8 +40,13 @@ __all__ = [
     "CodeEnvResource",
     "Column",
     "DatasetResource",
+    "ExposedDatasetResource",
+    "ExposedManagedFolderResource",
+    "ExposedObjectResource",
     "FilesystemDatasetResource",
     "FilesystemManagedFolderResource",
+    "ForeignDatasetResource",
+    "ForeignManagedFolderResource",
     "GitLibraryResource",
     "ManagedFolderResource",
     "OracleDatasetResource",

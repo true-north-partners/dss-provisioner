@@ -21,6 +21,21 @@ datasets:
     type: ...
     # type-specific fields
 
+exposed_objects:
+  - name: ...
+    type: dataset|managed_folder
+    target_projects: [...]
+
+foreign_datasets:
+  - name: ...
+    source_project: ...
+    source_name: ...
+
+foreign_managed_folders:
+  - name: ...
+    source_project: ...
+    source_name: ...
+
 recipes:
   - name: ...
     type: ...
@@ -61,6 +76,8 @@ recipes:
 ```
 
 Available dataset types: `snowflake`, `oracle`, `filesystem`, `upload`.
+
+Available exposed object types: `dataset`, `managed_folder`.
 
 Available recipe types: `python`, `sql_query`, `sync`.
 
@@ -129,5 +146,7 @@ At plan time, the engine additionally validates:
 - `depends_on` addresses reference known resources
 - `zone` references point to actual zone resources
 - `sql_query` recipes have at least one input that is a SQL-connection dataset
+- `exposed_objects` reference local DSS objects that exist
+- `foreign_*` source project differs from the target project
 
 See [YAML configuration](../guides/yaml-config.md) for the full field reference.

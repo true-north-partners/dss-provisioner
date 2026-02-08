@@ -82,6 +82,28 @@ datasets:
       - production
       - pii
 
+exposed_objects:
+  - name: customers_clean
+    type: dataset
+    target_projects:
+      - ANALYTICS_APP
+      - REPORTING
+
+  - name: trained_models
+    type: managed_folder
+    target_projects:
+      - ML_SERVING
+
+foreign_datasets:
+  - name: shared_orders
+    source_project: DATA_LAKE
+    source_name: curated_orders
+
+foreign_managed_folders:
+  - name: shared_reference_data
+    source_project: GOVERNANCE
+    source_name: master_reference
+
 recipes:
   - name: clean_customers
     type: python
@@ -151,6 +173,9 @@ modules:
 | `libraries` | list | `[]` | Git library references (applied after variables, before datasets/recipes) |
 | `managed_folders` | list | `[]` | Managed folder resource definitions |
 | `datasets` | list | `[]` | Dataset resource definitions |
+| `exposed_objects` | list | `[]` | Cross-project exposure rules for local datasets/folders |
+| `foreign_datasets` | list | `[]` | Foreign dataset aliases from other DSS projects |
+| `foreign_managed_folders` | list | `[]` | Foreign managed folder aliases from other DSS projects |
 | `recipes` | list | `[]` | Recipe resource definitions |
 | `scenarios` | list | `[]` | Scenario resource definitions (applied after datasets/recipes) |
 | `modules` | list | `[]` | Python module invocations that expand into resources at config-load time |
@@ -289,6 +314,47 @@ Upload managed folders have no additional required fields.
 
 Upload datasets have no additional required fields. They default to `managed: true`.
 
+## Exposed object fields
+
+Use `exposed_objects` to share local datasets/folders with other projects.
+
+### Common fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Local object name to expose |
+| `type` | string | — | **Required.** One of: `dataset`, `managed_folder` |
+| `target_projects` | list | — | **Required.** Target project keys (min 1; duplicates removed) |
+| `description` | string | `""` | Not used by DSS exposed objects (kept in state) |
+| `tags` | list | `[]` | Not used by DSS exposed objects (kept in state) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+## Foreign object fields
+
+Use foreign resources to declare cross-project aliases consumed by this project.
+
+### Foreign datasets (`foreign_datasets`)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Local alias used in recipes |
+| `source_project` | string | — | **Required.** Source project key |
+| `source_name` | string | — | **Required.** Source dataset name |
+| `description` | string | `""` | Not used by DSS foreign refs (kept in state) |
+| `tags` | list | `[]` | Not used by DSS foreign refs (kept in state) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
+### Foreign managed folders (`foreign_managed_folders`)
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `name` | string | — | **Required.** Local alias used in recipes |
+| `source_project` | string | — | **Required.** Source project key |
+| `source_name` | string | — | **Required.** Source managed folder name |
+| `description` | string | `""` | Not used by DSS foreign refs (kept in state) |
+| `tags` | list | `[]` | Not used by DSS foreign refs (kept in state) |
+| `depends_on` | list | `[]` | Explicit resource dependencies (addresses) |
+
 ## Recipe fields
 
 ### Common fields (all types)
@@ -297,8 +363,8 @@ Upload datasets have no additional required fields. They default to `managed: tr
 |---|---|---|---|
 | `name` | string | — | **Required.** Recipe name in DSS. Must match `^[a-zA-Z0-9_]+$` |
 | `type` | string | — | **Required.** One of: `python`, `sql_query`, `sync` |
-| `inputs` | string or list | `[]` | Input dataset name(s). Elements must be non-empty. **Required** for `sql_query` (min 1) |
-| `outputs` | string or list | — | **Required.** Output dataset name(s) (min 1 element). Elements must be non-empty |
+| `inputs` | string or list | `[]` | Input refs. Can be local names, foreign aliases, or `PROJECT.object` refs. **Required** for `sql_query` (min 1) |
+| `outputs` | string or list | — | **Required.** Output refs (min 1 element). Elements must be non-empty |
 | `zone` | string | — | Flow zone (Enterprise only). Validated at plan time — must reference a known zone |
 | `description` | string | `""` | Recipe description |
 | `tags` | list | `[]` | DSS tags. Elements must be non-empty strings |
@@ -320,7 +386,7 @@ Upload datasets have no additional required fields. They default to `managed: tr
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `inputs` | string or list | — | **Required.** Input dataset name(s) (min 1 element; validated at plan time — at least one input must reference a SQL-connection dataset) |
+| `inputs` | string or list | — | **Required.** Input refs (min 1 element; validated at plan time — at least one input must be SQL-capable or a foreign ref) |
 | `code` | string | `""` | Inline SQL code |
 | `code_file` | string | — | Path to SQL file (relative to config file) |
 
@@ -438,7 +504,9 @@ At plan time, the engine additionally validates:
 
 - **`depends_on`** addresses must reference a known resource (in config or state)
 - **`zone`** references must point to a resource of type `dss_zone`
-- **SQL recipe inputs** must include at least one SQL-connection dataset
+- **SQL recipe inputs** must include at least one SQL-capable input (local SQL dataset or foreign ref)
+- **`exposed_objects`** names must exist as local objects in DSS
+- **`foreign_*`** `source_project` must differ from the target project
 - **`code_envs`** `default_python` and `default_r` must reference existing code environments on the DSS instance
 - **Python recipe `code_env`** must reference an existing Python code environment on the DSS instance
 
@@ -460,7 +528,7 @@ recipes:
 
 ### Implicit dependencies
 
-Recipe `inputs` and `outputs` automatically create dependencies on the referenced datasets. You don't need to add `depends_on` for these.
+Recipe `inputs` and `outputs` automatically create dependencies on referenced local/foreign resources by name. You don't need to add `depends_on` for these in the common case.
 
 ```yaml
 datasets:
