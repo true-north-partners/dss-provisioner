@@ -75,6 +75,14 @@ prepare_release *version:
 test:
     uv run pytest --cov=dss_provisioner --cov-report=term-missing
 
+[doc('Run e2e integration tests')]
+test_e2e:
+    uv run pytest tests/e2e -m integration -o "addopts=--strict-markers" --tb=short -v
+
+[doc('Run all tests (unit + e2e)')]
+test_all:
+    uv run pytest --cov=dss_provisioner --cov-report=term-missing -m ""
+
 [doc('Build documentation')]
 build_docs:
     uv run mkdocs build --clean
