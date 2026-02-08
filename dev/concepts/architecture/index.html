@@ -697,6 +697,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preview-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preview workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#partial-failure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1247,6 +1258,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preview-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preview workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#partial-failure" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1334,6 +1356,16 @@
 <li>Saved plans (via <code>--out</code>) are checked for staleness via lineage, serial, and state digest before apply.</li>
 <li>DSS <code>${…}</code> variables (e.g. <code>${projectKey}</code>) are resolved transparently during plan comparison so they don't cause false drift.</li>
 </ul>
+<h2 id="preview-workflow">Preview workflow<a class="headerlink" href="#preview-workflow" title="Permanent link">&para;</a></h2>
+<p>The <code>preview</code> CLI command composes an ephemeral config overlay and then reuses the normal plan/apply engine:</p>
+<ol>
+<li>Resolve current branch (<code>--branch</code> can override auto-detection)</li>
+<li>Derive preview project key from base project + branch</li>
+<li>Derive preview state path from base <code>state_path</code> (for isolation)</li>
+<li>Rewrite library entries with <code>repository: self</code> to the local git <code>origin</code> URL and set checkout to the branch</li>
+<li>Create (or reuse) the preview DSS project, then run standard <code>plan()</code> + <code>apply()</code> against it</li>
+</ol>
+<p>This keeps the engine unchanged while isolating preview state and project scope.</p>
 <h2 id="partial-failure">Partial failure<a class="headerlink" href="#partial-failure" title="Permanent link">&para;</a></h2>
 <p>Apply does not support rollback. If a resource fails mid-apply:</p>
 <ol>

@@ -1028,6 +1028,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        preview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1220,6 +1231,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#preview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        preview
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1284,7 +1306,7 @@
 
 
 <h1 id="cli-reference">CLI reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
-<p>dss-provisioner provides a Typer-based CLI with six commands.</p>
+<p>dss-provisioner provides a Typer-based CLI with seven commands.</p>
 <h2 id="global-options">Global options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
 <p>All commands accept:</p>
 <table>
@@ -1400,9 +1422,50 @@
 </tbody>
 </table>
 <p>Plans deletion of all resources tracked in the state file, then applies in reverse dependency order.</p>
+<h3 id="preview"><code>preview</code><a class="headerlink" href="#preview" title="Permanent link">&para;</a></h3>
+<p>Create, list, or destroy branch-based preview projects.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>dss-provisioner<span class="w"> </span>preview<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--branch TEXT</code></td>
+<td>current git branch</td>
+<td>Override branch used for preview key and <code>repository: self</code> library checkout</td>
+</tr>
+<tr>
+<td><code>--destroy</code></td>
+<td><code>false</code></td>
+<td>Delete the computed preview project and preview state files</td>
+</tr>
+<tr>
+<td><code>--list</code></td>
+<td><code>false</code></td>
+<td>List active preview projects for the configured base project</td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td><code>false</code></td>
+<td>Allow reuse/delete of an existing project key even when it is not tagged as a provisioner-managed preview</td>
+</tr>
+<tr>
+<td><code>--no-refresh</code></td>
+<td><code>false</code></td>
+<td>Skip refreshing preview state before planning</td>
+</tr>
+</tbody>
+</table>
+<p><code>preview</code> derives a project key from <code>provider.project</code> + branch (for example <code>ANALYTICS__FEATURE_X</code>), rewrites <code>repository: self</code> libraries to the local <code>origin</code> URL at that branch, applies the config to the preview project, and uses an isolated state file (for example <code>.dss-state.preview.feature_x.json</code>). By default, reuse/delete operations only proceed for projects tagged as provisioner-managed previews; <code>--force</code> overrides that guard.</p>
 <h3 id="refresh"><code>refresh</code><a class="headerlink" href="#refresh" title="Permanent link">&para;</a></h3>
 <p>Refresh state from the live DSS instance.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>dss-provisioner<span class="w"> </span>refresh<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>dss-provisioner<span class="w"> </span>refresh<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <table>
 <thead>
@@ -1423,12 +1486,12 @@
 <p>Reads the current state of each tracked resource from DSS and updates the local state file. Useful after manual changes in the DSS UI.</p>
 <h3 id="drift"><code>drift</code><a class="headerlink" href="#drift" title="Permanent link">&para;</a></h3>
 <p>Show drift between state and the live DSS instance.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>dss-provisioner<span class="w"> </span>drift<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>dss-provisioner<span class="w"> </span>drift<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <p>Read-only command that compares the state file against live DSS. Does not modify state. Shows which resources have drifted and what changed.</p>
 <h3 id="validate"><code>validate</code><a class="headerlink" href="#validate" title="Permanent link">&para;</a></h3>
 <p>Validate the configuration file.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>dss-provisioner<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>dss-provisioner<span class="w"> </span>validate<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
 <p>Parses and validates the YAML configuration without connecting to DSS. Useful in CI pipelines or pre-commit hooks.</p>
 
