@@ -26,6 +26,7 @@ dev = [
     "ty>=0.0.8",
     "pytest>=9.0",
     "pytest-cov>=7.0",
+    "keyring>=25.0",
 ]
 docs = [
     "mkdocs>=1.6",
@@ -76,6 +77,7 @@ python_files = ["test_*.py"]
 addopts = "--strict-markers -m 'not integration'"
 markers = [
     "integration: tests that require a real DSS instance (docker/notebook)",
+    "enterprise: tests that require an enterprise DSS instance",
 ]
 
 [tool.coverage.run]
