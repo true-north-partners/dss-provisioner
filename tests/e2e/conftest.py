@@ -115,22 +115,25 @@ def dss_api_key(dss_host: str) -> str:
             except Exception:
                 logger.info("Stored keyring API key is invalid, re-provisioning")
 
-    # 3. Provision via dsscli
-    result = subprocess.run(
-        [
-            "dsscli",
-            "api-key-create",
-            "--output",
-            "json",
-            "--label",
-            "provisioner-e2e",
-            "--admin",
-            "true",
-        ],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    # 3. Provision via dsscli (admin key required for cross-resource-type operations)
+    try:
+        result = subprocess.run(
+            [
+                "dsscli",
+                "api-key-create",
+                "--output",
+                "json",
+                "--label",
+                "provisioner-e2e",
+                "--admin",
+                "true",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        pytest.skip(f"No API key available: set DSS_API_KEY env var or install dsscli ({exc})")
     key = json.loads(result.stdout)["key"]
 
     # Store in keyring for next run
@@ -261,15 +264,17 @@ def make_config(
 
 
 def assert_changes(plan_obj: Any, expected: dict[str, str]) -> None:
-    """Assert that a plan contains exactly the expected actions for the given resource names.
+    """Assert that a plan contains exactly the expected actions — no more, no less.
 
     *expected* maps resource names to Action values (e.g. ``{"my_ds": "create"}``).
     """
     from dss_provisioner.engine.types import Action
 
     actual = {c.address.split(".")[-1]: c.action for c in plan_obj.changes}
-    for name, action in expected.items():
-        act = Action(action) if isinstance(action, str) else action
-        assert actual.get(name) == act, (
-            f"Expected {name}={act}, got {actual.get(name)}. Full plan: {actual}"
-        )
+    normalized = {
+        name: (Action(action) if isinstance(action, str) else action)
+        for name, action in expected.items()
+    }
+    assert actual == normalized, (
+        f"Plan changes mismatch.\nExpected: {normalized}\nActual:   {actual}"
+    )

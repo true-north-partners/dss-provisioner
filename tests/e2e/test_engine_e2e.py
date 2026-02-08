@@ -57,12 +57,12 @@ class TestMultiResourceOrchestration:
         # The engine refreshes state from DSS, then compares desired vs live.
         # Since our desired description is "" and DSS has "externally modified",
         # this should be an UPDATE.
-        assert_changes(p3, {ds1: Action.UPDATE})
+        assert_changes(p3, {ds1: Action.UPDATE, ds2: Action.NOOP})
         apply(p3, cfg)
 
         # NOOP after correction
         p4 = plan(cfg)
-        assert_changes(p4, {ds1: Action.NOOP})
+        assert_changes(p4, {ds1: Action.NOOP, ds2: Action.NOOP})
 
         # DESTROY
         p5 = plan(cfg, destroy=True)
@@ -123,8 +123,9 @@ class TestMultiResourceOrchestration:
         assert state3.lineage == first_lineage
         assert state3.serial > first_serial
 
-        # Cleanup
+        # DESTROY
         p4 = plan(cfg_updated, destroy=True)
+        assert_changes(p4, {name: Action.DELETE})
         apply(p4, cfg_updated)
 
     def test_multi_resource_dependencies(self, make_config, cleanup_recipes, cleanup_datasets):

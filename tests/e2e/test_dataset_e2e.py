@@ -119,8 +119,9 @@ class TestFormatParams:
         p2 = plan(cfg)
         assert_changes(p2, {name: Action.NOOP})
 
-        # Cleanup
+        # DESTROY
         p3 = plan(cfg, destroy=True)
+        assert_changes(p3, {name: Action.DELETE})
         apply(p3, cfg)
 
 
@@ -147,6 +148,7 @@ class TestVariableSubstitution:
         p2 = plan(cfg)
         assert_changes(p2, {name: Action.NOOP})
 
-        # Cleanup
+        # DESTROY
         p3 = plan(cfg, destroy=True)
+        assert_changes(p3, {name: Action.DELETE})
         apply(p3, cfg)

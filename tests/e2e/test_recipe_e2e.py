@@ -90,13 +90,14 @@ class TestPythonRecipe:
         )
         cfg_updated = make_config(datasets=[ds_src, ds_dst], recipes=[rcp_updated])
         p3 = plan(cfg_updated)
-        assert_changes(p3, {recipe: Action.UPDATE})
+        assert_changes(p3, {recipe: Action.UPDATE, src: Action.NOOP, dst: Action.NOOP})
         apply(p3, cfg_updated)
 
         # NOOP after update
         p4 = plan(cfg_updated)
-        assert_changes(p4, {recipe: Action.NOOP})
+        assert_changes(p4, {recipe: Action.NOOP, src: Action.NOOP, dst: Action.NOOP})
 
         # DESTROY
         p5 = plan(cfg_updated, destroy=True)
+        assert_changes(p5, {recipe: Action.DELETE, src: Action.DELETE, dst: Action.DELETE})
         apply(p5, cfg_updated)

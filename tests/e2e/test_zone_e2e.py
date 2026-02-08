@@ -64,4 +64,5 @@ class TestZone:
 
         # DESTROY
         p3 = plan(cfg, destroy=True)
+        assert_changes(p3, {zone_name: Action.DELETE, ds_name: Action.DELETE})
         apply(p3, cfg)
