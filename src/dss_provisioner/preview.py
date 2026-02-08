@@ -54,11 +54,12 @@ def run_preview(
     *,
     branch: str | None = None,
     refresh: bool = True,
+    force: bool = False,
 ) -> tuple[PreviewSpec, Plan, ApplyResult]:
     """Create/reuse preview project, apply config, and return results."""
     spec = compute_preview_spec(config, branch=branch)
     provider = _provider_from_config(config)
-    _ensure_preview_project(provider, spec)
+    _ensure_preview_project(provider, spec, force=force)
 
     preview_config = build_preview_config(config, spec)
     plan_obj = plan_fn(preview_config, refresh=refresh)
@@ -66,11 +67,16 @@ def run_preview(
     return spec, plan_obj, result
 
 
-def destroy_preview(config: Config, *, branch: str | None = None) -> tuple[PreviewSpec, bool]:
+def destroy_preview(
+    config: Config,
+    *,
+    branch: str | None = None,
+    force: bool = False,
+) -> tuple[PreviewSpec, bool]:
     """Delete preview project + state artifacts. Returns (spec, project_deleted)."""
     spec = compute_preview_spec(config, branch=branch)
     provider = _provider_from_config(config)
-    deleted = _delete_preview_project(provider, spec.preview_project_key)
+    deleted = _delete_preview_project(provider, spec, force=force)
     _cleanup_preview_state(spec.preview_state_path)
     return spec, deleted
 
@@ -86,13 +92,17 @@ def list_previews(config: Config) -> list[PreviewProject]:
         if not key.startswith(prefix):
             continue
 
-        branch: str | None = None
         try:
             meta = provider.client.get_project(key).get_metadata()
             tags = meta.get("tags", [])
-            branch = _extract_tag(tags, _PREVIEW_BRANCH_PREFIX)
         except Exception:
             logger.debug("Could not read metadata for preview project %s", key, exc_info=True)
+            continue
+
+        if not _is_preview_project(tags, base_project_key=base_key):
+            continue
+
+        branch = _extract_tag(tags, _PREVIEW_BRANCH_PREFIX)
 
         previews.append(PreviewProject(project_key=key, branch=branch))
 
@@ -193,8 +203,11 @@ def _build_preview_state_path(base_state_path: Path, branch_slug: str) -> Path:
     return base_state_path.with_name(preview_name)
 
 
-def _ensure_preview_project(provider: DSSProvider, spec: PreviewSpec) -> None:
-    if spec.preview_project_key not in set(provider.projects.list_projects()):
+def _ensure_preview_project(
+    provider: DSSProvider, spec: PreviewSpec, *, force: bool = False
+) -> None:
+    existing_project_keys = set(provider.projects.list_projects())
+    if spec.preview_project_key not in existing_project_keys:
         auth = provider.client.get_auth_info()
         owner = auth.get("authIdentifier")
         if not owner:
@@ -205,15 +218,24 @@ def _ensure_preview_project(provider: DSSProvider, spec: PreviewSpec) -> None:
             f"{spec.base_project_key} preview ({spec.branch})",
             owner=owner,
         )
+    elif not force:
+        project = provider.client.get_project(spec.preview_project_key)
+        _assert_preview_project_ownership(project, spec, operation="reuse")
 
     project = provider.client.get_project(spec.preview_project_key)
     _tag_preview_project(project, spec)
 
 
-def _delete_preview_project(provider: DSSProvider, preview_project_key: str) -> bool:
-    if preview_project_key not in set(provider.projects.list_projects()):
+def _delete_preview_project(
+    provider: DSSProvider, spec: PreviewSpec, *, force: bool = False
+) -> bool:
+    if spec.preview_project_key not in set(provider.projects.list_projects()):
         return False
-    provider.projects.delete(preview_project_key)
+    if not force:
+        project = provider.client.get_project(spec.preview_project_key)
+        _assert_preview_project_ownership(project, spec, operation="delete")
+
+    provider.projects.delete(spec.preview_project_key)
     return True
 
 
@@ -246,6 +268,25 @@ def _extract_tag(tags: list[str], prefix: str) -> str | None:
     return None
 
 
+def _is_preview_project(tags: list[str], *, base_project_key: str) -> bool:
+    return _PREVIEW_TAG in tags and f"{_PREVIEW_BASE_PREFIX}{base_project_key}" in tags
+
+
+def _assert_preview_project_ownership(
+    project: object, spec: PreviewSpec, *, operation: str
+) -> None:
+    meta = project.get_metadata()  # type: ignore[attr-defined]
+    tags = meta.get("tags", [])
+    if _is_preview_project(tags, base_project_key=spec.base_project_key):
+        return
+
+    msg = (
+        f"Refusing to {operation} non-preview project '{spec.preview_project_key}'. "
+        "Use --force to override."
+    )
+    raise ConfigError(msg)
+
+
 def _git_output(config_dir: Path, *args: str) -> str:
     cmd = ["git", "-C", str(config_dir), *args]
     try:
@@ -260,5 +301,10 @@ def _git_output(config_dir: Path, *args: str) -> str:
         msg = f"Failed to run {' '.join(cmd)}"
         if stderr:
             msg += f": {stderr}"
+        raise ConfigError(msg) from exc
+    except OSError as exc:
+        msg = (
+            f"Failed to run {' '.join(cmd)}: {exc}. Install git and ensure it is available on PATH."
+        )
         raise ConfigError(msg) from exc
     return completed.stdout.strip()

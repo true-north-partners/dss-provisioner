@@ -87,9 +87,10 @@ dss-provisioner preview [OPTIONS]
 | `--branch TEXT` | current git branch | Override branch used for preview key and `repository: self` library checkout |
 | `--destroy` | `false` | Delete the computed preview project and preview state files |
 | `--list` | `false` | List active preview projects for the configured base project |
+| `--force` | `false` | Allow reuse/delete of an existing project key even when it is not tagged as a provisioner-managed preview |
 | `--no-refresh` | `false` | Skip refreshing preview state before planning |
 
-`preview` derives a project key from `provider.project` + branch (for example `ANALYTICS__FEATURE_X`), rewrites `repository: self` libraries to the local `origin` URL at that branch, applies the config to the preview project, and uses an isolated state file (for example `.dss-state.preview.feature_x.json`).
+`preview` derives a project key from `provider.project` + branch (for example `ANALYTICS__FEATURE_X`), rewrites `repository: self` libraries to the local `origin` URL at that branch, applies the config to the preview project, and uses an isolated state file (for example `.dss-state.preview.feature_x.json`). By default, reuse/delete operations only proceed for projects tagged as provisioner-managed previews; `--force` overrides that guard.
 
 ### `refresh`
 

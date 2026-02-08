@@ -374,6 +374,7 @@ class TestPreviewCommand:
         _, kwargs = mock_run_preview.call_args
         assert kwargs["branch"] == "feature/new-scoring"
         assert kwargs["refresh"] is True
+        assert kwargs["force"] is False
 
     @patch("dss_provisioner.preview.run_preview")
     @patch("dss_provisioner.config.load")
@@ -393,6 +394,26 @@ class TestPreviewCommand:
         assert result.exit_code == 0
         _, kwargs = mock_run_preview.call_args
         assert kwargs["refresh"] is False
+        assert kwargs["force"] is False
+
+    @patch("dss_provisioner.preview.run_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_force_flag(
+        self,
+        mock_load: MagicMock,
+        mock_run_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_run_preview.return_value = (
+            self._preview_spec(),
+            _NOOP_PLAN,
+            ApplyResult(applied=[]),
+        )
+
+        result = runner.invoke(app, ["preview", "--no-color", "--force"])
+        assert result.exit_code == 0
+        _, kwargs = mock_run_preview.call_args
+        assert kwargs["force"] is True
 
     @patch("dss_provisioner.preview.destroy_preview")
     @patch("dss_provisioner.config.load")
@@ -407,6 +428,23 @@ class TestPreviewCommand:
         result = runner.invoke(app, ["preview", "--no-color", "--destroy"])
         assert result.exit_code == 0
         assert "Deleted preview project" in result.stdout
+        _, kwargs = mock_destroy_preview.call_args
+        assert kwargs["force"] is False
+
+    @patch("dss_provisioner.preview.destroy_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_destroy_force_flag(
+        self,
+        mock_load: MagicMock,
+        mock_destroy_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_destroy_preview.return_value = (self._preview_spec(), True)
+
+        result = runner.invoke(app, ["preview", "--no-color", "--destroy", "--force"])
+        assert result.exit_code == 0
+        _, kwargs = mock_destroy_preview.call_args
+        assert kwargs["force"] is True
 
     @patch("dss_provisioner.preview.list_previews")
     @patch("dss_provisioner.config.load")

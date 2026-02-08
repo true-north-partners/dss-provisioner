@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from dss_provisioner.config.loader import ConfigError
 from dss_provisioner.config.schema import Config, ProviderConfig
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
 from dss_provisioner.preview import (
@@ -141,6 +144,49 @@ def test_run_preview_creates_project_and_applies(tmp_path: Path) -> None:
     project.set_metadata.assert_called_once()
 
 
+def test_run_preview_refuses_non_preview_key_without_force(tmp_path: Path) -> None:
+    cfg = _config(state_path=Path(".dss-state.json"), config_dir=tmp_path)
+    spec = compute_preview_spec(cfg, branch="feature/new-scoring")
+    project = MagicMock()
+    project.get_metadata.return_value = {"tags": []}
+
+    provider = MagicMock()
+    provider.projects.list_projects.return_value = [spec.preview_project_key]
+    provider.client.get_project.return_value = project
+
+    with (
+        patch("dss_provisioner.preview._provider_from_config", return_value=provider),
+        patch("dss_provisioner.preview.plan_fn") as mock_plan,
+        patch("dss_provisioner.preview.apply_fn") as mock_apply,
+        pytest.raises(ConfigError, match="Refusing to reuse non-preview project"),
+    ):
+        run_preview(cfg, branch="feature/new-scoring")
+
+    mock_plan.assert_not_called()
+    mock_apply.assert_not_called()
+
+
+def test_run_preview_force_reuses_non_preview_key(tmp_path: Path) -> None:
+    cfg = _config(state_path=Path(".dss-state.json"), config_dir=tmp_path)
+    spec = compute_preview_spec(cfg, branch="feature/new-scoring")
+    project = MagicMock()
+    project.get_metadata.return_value = {"tags": []}
+
+    provider = MagicMock()
+    provider.projects.list_projects.return_value = [spec.preview_project_key]
+    provider.client.get_project.return_value = project
+
+    with (
+        patch("dss_provisioner.preview._provider_from_config", return_value=provider),
+        patch("dss_provisioner.preview.plan_fn", return_value=_noop_plan()) as mock_plan,
+        patch("dss_provisioner.preview.apply_fn", return_value=ApplyResult(applied=[])),
+    ):
+        run_preview(cfg, branch="feature/new-scoring", force=True)
+
+    mock_plan.assert_called_once()
+    project.set_metadata.assert_called_once()
+
+
 def test_list_previews_for_base_project(tmp_path: Path) -> None:
     cfg = _config(state_path=Path(".dss-state.json"), config_dir=tmp_path)
     mock_client = MagicMock()
@@ -154,7 +200,11 @@ def test_list_previews_for_base_project(tmp_path: Path) -> None:
         p = MagicMock()
         if key == "ANALYTICS__FEATURE_ONE":
             p.get_metadata.return_value = {
-                "tags": ["dss-provisioner-preview", "dss-provisioner-branch:feature/one"]
+                "tags": [
+                    "dss-provisioner-preview",
+                    "dss-provisioner-base:ANALYTICS",
+                    "dss-provisioner-branch:feature/one",
+                ]
             }
         else:
             p.get_metadata.return_value = {"tags": []}
@@ -169,7 +219,6 @@ def test_list_previews_for_base_project(tmp_path: Path) -> None:
 
     assert previews == [
         PreviewProject(project_key="ANALYTICS__FEATURE_ONE", branch="feature/one"),
-        PreviewProject(project_key="ANALYTICS__FEATURE_TWO", branch=None),
     ]
 
 
@@ -190,6 +239,11 @@ def test_destroy_preview_deletes_project_and_state_files(tmp_path: Path) -> None
     mock_client = MagicMock()
     provider = MagicMock(client=mock_client, projects=MagicMock())
     provider.projects.list_projects.return_value = [spec.preview_project_key]
+    project = MagicMock()
+    project.get_metadata.return_value = {
+        "tags": ["dss-provisioner-preview", "dss-provisioner-base:ANALYTICS"]
+    }
+    mock_client.get_project.return_value = project
 
     with patch("dss_provisioner.preview._provider_from_config", return_value=provider):
         returned_spec, deleted = destroy_preview(cfg, branch="feature/new-scoring")
@@ -199,3 +253,53 @@ def test_destroy_preview_deletes_project_and_state_files(tmp_path: Path) -> None
     provider.projects.delete.assert_called_once_with(spec.preview_project_key)
     for path in state_files:
         assert not path.exists()
+
+
+def test_destroy_preview_refuses_non_preview_key_without_force(tmp_path: Path) -> None:
+    cfg = _config(state_path=tmp_path / ".dss-state.json", config_dir=tmp_path)
+    spec = compute_preview_spec(cfg, branch="feature/new-scoring")
+
+    mock_client = MagicMock()
+    project = MagicMock()
+    project.get_metadata.return_value = {"tags": []}
+    mock_client.get_project.return_value = project
+
+    provider = MagicMock(client=mock_client, projects=MagicMock())
+    provider.projects.list_projects.return_value = [spec.preview_project_key]
+
+    with (
+        patch("dss_provisioner.preview._provider_from_config", return_value=provider),
+        pytest.raises(ConfigError, match="Refusing to delete non-preview project"),
+    ):
+        destroy_preview(cfg, branch="feature/new-scoring")
+
+    provider.projects.delete.assert_not_called()
+
+
+def test_destroy_preview_force_deletes_non_preview_key(tmp_path: Path) -> None:
+    cfg = _config(state_path=tmp_path / ".dss-state.json", config_dir=tmp_path)
+    spec = compute_preview_spec(cfg, branch="feature/new-scoring")
+
+    mock_client = MagicMock()
+    project = MagicMock()
+    project.get_metadata.return_value = {"tags": []}
+    mock_client.get_project.return_value = project
+
+    provider = MagicMock(client=mock_client, projects=MagicMock())
+    provider.projects.list_projects.return_value = [spec.preview_project_key]
+
+    with patch("dss_provisioner.preview._provider_from_config", return_value=provider):
+        _returned_spec, deleted = destroy_preview(cfg, branch="feature/new-scoring", force=True)
+
+    assert deleted is True
+    provider.projects.delete.assert_called_once_with(spec.preview_project_key)
+
+
+def test_git_output_wraps_missing_git_error(tmp_path: Path) -> None:
+    cfg = _config(state_path=Path(".dss-state.json"), config_dir=tmp_path)
+
+    with (
+        patch("dss_provisioner.preview.subprocess.run", side_effect=FileNotFoundError("git")),
+        pytest.raises(ConfigError, match="Install git and ensure it is available on PATH"),
+    ):
+        compute_preview_spec(cfg, branch=None)

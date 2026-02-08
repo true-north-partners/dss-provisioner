@@ -300,6 +300,16 @@ def preview(
         bool,
         typer.Option("--list", help="List active preview projects for the base project."),
     ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help=(
+                "Allow reusing or deleting an existing project key even when it is not tagged "
+                "as a dss-provisioner preview."
+            ),
+        ),
+    ] = False,
     no_color: NoColor = False,
     no_refresh: NoRefresh = False,
 ) -> None:
@@ -334,7 +344,7 @@ def preview(
             return
 
         if destroy:
-            spec, deleted = destroy_preview(cfg, branch=branch)
+            spec, deleted = destroy_preview(cfg, branch=branch, force=force)
             if deleted:
                 typer.echo(f"Deleted preview project: {spec.preview_project_key}")
             else:
@@ -342,7 +352,12 @@ def preview(
             typer.echo(f"Cleaned preview state files for: {spec.preview_state_path}")
             return
 
-        spec, plan_obj, result = run_preview(cfg, branch=branch, refresh=not no_refresh)
+        spec, plan_obj, result = run_preview(
+            cfg,
+            branch=branch,
+            refresh=not no_refresh,
+            force=force,
+        )
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
 
