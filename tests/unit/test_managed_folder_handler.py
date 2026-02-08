@@ -159,6 +159,20 @@ class TestCreate:
         handler.create(ctx, desired)
         mock_folder.move_to_zone.assert_called_once_with("raw")
 
+    def test_upload_omits_connection_name(
+        self,
+        ctx: EngineContext,
+        handler: ManagedFolderHandler,
+        mock_project: MagicMock,
+        mock_folder: MagicMock,  # noqa: ARG002
+    ) -> None:
+        desired = UploadManagedFolderResource(name="uploads")
+        handler.create(ctx, desired)
+        mock_project.create_managed_folder.assert_called_once_with(
+            "uploads",
+            folder_type="UploadedFiles",
+        )
+
     def test_no_zone_when_not_specified(
         self,
         ctx: EngineContext,
