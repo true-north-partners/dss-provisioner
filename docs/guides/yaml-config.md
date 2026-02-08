@@ -214,6 +214,9 @@ Code environment defaults have `plan_priority: 5`, applied after variables (0) b
 !!! note
     `add_to_python_path` is a create-time-only field. To change it, delete and recreate the library.
 
+!!! tip
+    For `dss-provisioner preview`, set `repository: self` to reuse the current repo's `origin` URL and automatically pin `checkout` to the current branch in the preview project.
+
 ## Managed folder fields
 
 ### Common fields (all types)

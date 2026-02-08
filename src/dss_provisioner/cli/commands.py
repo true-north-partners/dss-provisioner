@@ -283,6 +283,86 @@ def drift(
 
 
 @app.command()
+def preview(
+    config: ConfigPath = Path("dss-provisioner.yaml"),
+    branch: Annotated[
+        str | None,
+        typer.Option(
+            "--branch",
+            help="Override git branch name for preview key and library checkout.",
+        ),
+    ] = None,
+    destroy: Annotated[
+        bool,
+        typer.Option("--destroy", help="Delete the preview project and preview state."),
+    ] = False,
+    list_: Annotated[
+        bool,
+        typer.Option("--list", help="List active preview projects for the base project."),
+    ] = False,
+    no_color: NoColor = False,
+    no_refresh: NoRefresh = False,
+) -> None:
+    """Create, list, or destroy branch-based preview environments."""
+    from dss_provisioner.cli.formatting import (
+        format_apply_summary,
+        format_plan,
+        format_plan_summary,
+    )
+    from dss_provisioner.config import load
+    from dss_provisioner.config.loader import ConfigError
+    from dss_provisioner.preview import destroy_preview, list_previews, run_preview
+
+    color = _use_color(no_color)
+
+    if destroy and list_:
+        exc = ConfigError("preview options --destroy and --list cannot be used together")
+        raise typer.Exit(handle_error(exc, color=color))
+
+    try:
+        cfg = load(config)
+        if list_:
+            previews = list_previews(cfg)
+            if not previews:
+                typer.echo("No preview projects found.")
+                return
+
+            typer.echo("Preview projects:")
+            for preview_project in previews:
+                branch_text = preview_project.branch or "unknown"
+                typer.echo(f"  - {preview_project.project_key} (branch: {branch_text})")
+            return
+
+        if destroy:
+            spec, deleted = destroy_preview(cfg, branch=branch)
+            if deleted:
+                typer.echo(f"Deleted preview project: {spec.preview_project_key}")
+            else:
+                typer.echo(f"Preview project not found: {spec.preview_project_key}")
+            typer.echo(f"Cleaned preview state files for: {spec.preview_state_path}")
+            return
+
+        spec, plan_obj, result = run_preview(cfg, branch=branch, refresh=not no_refresh)
+    except Exception as exc:
+        raise typer.Exit(handle_error(exc, color=color)) from exc
+
+    typer.echo(f"Preview project: {spec.preview_project_key}")
+    typer.echo(f"Branch: {spec.branch}")
+    typer.echo(f"Preview state: {spec.preview_state_path}")
+    if cfg.provider.host:
+        typer.echo(
+            f"Preview URL: {cfg.provider.host.rstrip('/')}/projects/{spec.preview_project_key}/"
+        )
+
+    typer.echo()
+    typer.echo(format_plan(plan_obj, color=color))
+    typer.echo()
+    typer.echo(format_plan_summary(plan_obj.summary(), color=color, header="Preview plan"))
+    typer.echo()
+    typer.echo(format_apply_summary(result.summary(), color=color))
+
+
+@app.command()
 def validate(
     config: ConfigPath = Path("dss-provisioner.yaml"),
     no_color: NoColor = False,

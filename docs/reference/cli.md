@@ -1,6 +1,6 @@
 # CLI reference
 
-dss-provisioner provides a Typer-based CLI with six commands.
+dss-provisioner provides a Typer-based CLI with seven commands.
 
 ## Global options
 
@@ -73,6 +73,23 @@ dss-provisioner destroy [OPTIONS]
 | `--auto-approve` | `false` | Skip confirmation prompt |
 
 Plans deletion of all resources tracked in the state file, then applies in reverse dependency order.
+
+### `preview`
+
+Create, list, or destroy branch-based preview projects.
+
+```bash
+dss-provisioner preview [OPTIONS]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--branch TEXT` | current git branch | Override branch used for preview key and `repository: self` library checkout |
+| `--destroy` | `false` | Delete the computed preview project and preview state files |
+| `--list` | `false` | List active preview projects for the configured base project |
+| `--no-refresh` | `false` | Skip refreshing preview state before planning |
+
+`preview` derives a project key from `provider.project` + branch (for example `ANALYTICS__FEATURE_X`), rewrites `repository: self` libraries to the local `origin` URL at that branch, applies the config to the preview project, and uses an isolated state file (for example `.dss-state.preview.feature_x.json`).
 
 ### `refresh`
 
