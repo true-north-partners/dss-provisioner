@@ -27,6 +27,7 @@ class DummyResource(Resource):
     resource_type: ClassVar[str] = "dummy"
     value: int
     config: dict[str, Any] = Field(default_factory=dict)
+    items: list[int] = Field(default_factory=list)
 
 
 def _attrs(resource: DummyResource) -> dict[str, Any]:
@@ -37,6 +38,7 @@ def _attrs(resource: DummyResource) -> dict[str, Any]:
         "tags": list(resource.tags),
         "value": resource.value,
         "config": dict(resource.config),
+        "items": list(resource.items),
     }
 
 
@@ -304,6 +306,12 @@ class TestValuesDiffer:
         assert _values_differ([1, 2], [1, 2]) is False
         assert _values_differ([1, 2], [1, 2, 3]) is True
 
+    def test_set_strategy_ignores_order(self) -> None:
+        assert _values_differ(["e2e", "upload"], ["upload", "e2e"], strategy="set") is False
+
+    def test_set_strategy_detects_membership_change(self) -> None:
+        assert _values_differ(["e2e", "upload"], ["e2e"], strategy="set") is True
+
 
 class TestDictFieldDiffInPlan:
     """Engine-level test: dict fields with provider-added defaults don't cause spurious updates."""
@@ -358,6 +366,37 @@ class TestDictFieldDiffInPlan:
 
         plan = engine.plan([r], refresh=False)
         assert plan.changes[0].action == Action.NOOP
+
+
+class TestListFieldDiffInPlan:
+    def test_noop_when_tags_only_reordered(self, tmp_path: Path) -> None:
+        engine, _handler = _engine(tmp_path)
+
+        r = DummyResource(name="r1", value=1, tags=["e2e", "upload"])
+        engine.apply(engine.plan([r]))
+
+        state = State.load(engine.state_path)
+        state.resources["dummy.r1"].attributes["tags"] = ["upload", "e2e"]
+        state.save(engine.state_path)
+
+        plan = engine.plan([r], refresh=False)
+        assert plan.changes[0].action == Action.NOOP
+
+    def test_update_when_unmarked_list_reordered(self, tmp_path: Path) -> None:
+        engine, _handler = _engine(tmp_path)
+
+        r = DummyResource(name="r1", value=1, items=[1, 2])
+        engine.apply(engine.plan([r]))
+
+        state = State.load(engine.state_path)
+        state.resources["dummy.r1"].attributes["items"] = [2, 1]
+        state.save(engine.state_path)
+
+        plan = engine.plan([r], refresh=False)
+        assert plan.changes[0].action == Action.UPDATE
+        assert plan.changes[0].diff is not None
+        assert plan.changes[0].diff["items"]["from"] == [2, 1]
+        assert plan.changes[0].diff["items"]["to"] == [1, 2]
 
 
 # ---------------------------------------------------------------------------

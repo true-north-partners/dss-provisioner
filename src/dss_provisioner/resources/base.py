@@ -4,7 +4,7 @@ from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from dss_provisioner.resources.markers import collect_refs
+from dss_provisioner.resources.markers import Compare, collect_refs
 
 
 class Resource(BaseModel):
@@ -22,7 +22,9 @@ class Resource(BaseModel):
 
     name: str = Field(pattern=r"^[a-zA-Z0-9_]+$")
     description: str = ""
-    tags: list[Annotated[str, Field(min_length=1)]] = []
+    tags: Annotated[list[Annotated[str, Field(min_length=1)]], Compare("set")] = Field(
+        default_factory=list
+    )
 
     # Lifecycle
     depends_on: list[str] = []
