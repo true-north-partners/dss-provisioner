@@ -68,12 +68,14 @@ Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 - **Reproducibility** — Spin up identical DSS resources across dev/staging/prod
 - **Automation** — Deploy DSS changes in CI/CD without UI clicks
 - **Visibility** — See exactly what will change before applying
+- **Composability** — Write Python modules that generate resources from parameters
 
 ## Next steps
 
 - **[Quick start](quickstart.md)** — Get up and running in 5 minutes
 - **[Architecture](concepts/architecture.md)** — Understand the plan/apply engine and state model
 - **[YAML configuration](guides/yaml-config.md)** — Full config reference for all resource types
+- **[Writing modules](guides/modules.md)** — Create reusable resource generators in Python
 - **[Python API](guides/python-api.md)** — Use dss-provisioner as a library
 - **[CLI reference](reference/cli.md)** — All commands and options
 - **[API reference](reference/api.md)** — Auto-generated from source docstrings

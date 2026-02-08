@@ -148,3 +148,19 @@ Auto-generated API documentation for all resource types.
 ::: dss_provisioner.resources.scenario.PythonScenarioResource
     options:
       show_bases: false
+
+## Modules
+
+### ModuleSpec
+
+::: dss_provisioner.config.modules.ModuleSpec
+    options:
+      show_bases: false
+
+### ModuleExpansionError
+
+::: dss_provisioner.config.modules.ModuleExpansionError
+
+### expand_modules
+
+::: dss_provisioner.config.modules.expand_modules

@@ -76,4 +76,5 @@ dss-provisioner apply plan.json
 
 - [Architecture](concepts/architecture.md) — understand the plan/apply engine
 - [YAML configuration](guides/yaml-config.md) — full config reference
+- [Writing modules](guides/modules.md) — create reusable resource generators in Python
 - [Python API](guides/python-api.md) — use dss-provisioner as a library
