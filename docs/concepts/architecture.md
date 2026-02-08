@@ -61,6 +61,18 @@ If dependencies contain a cycle, the engine raises `DependencyCycleError`.
 - Saved plans (via `--out`) are checked for staleness via lineage, serial, and state digest before apply.
 - DSS `${…}` variables (e.g. `${projectKey}`) are resolved transparently during plan comparison so they don't cause false drift.
 
+## Preview workflow
+
+The `preview` CLI command composes an ephemeral config overlay and then reuses the normal plan/apply engine:
+
+1. Resolve current branch (`--branch` can override auto-detection)
+2. Derive preview project key from base project + branch
+3. Derive preview state path from base `state_path` (for isolation)
+4. Rewrite library entries with `repository: self` to the local git `origin` URL and set checkout to the branch
+5. Create (or reuse) the preview DSS project, then run standard `plan()` + `apply()` against it
+
+This keeps the engine unchanged while isolating preview state and project scope.
+
 ## Partial failure
 
 Apply does not support rollback. If a resource fails mid-apply:

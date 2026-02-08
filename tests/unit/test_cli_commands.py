@@ -13,6 +13,7 @@ from dss_provisioner.cli import app
 from dss_provisioner.config.loader import ConfigError
 from dss_provisioner.engine.errors import ApplyError, ValidationError
 from dss_provisioner.engine.types import Action, ApplyResult, Plan, PlanMetadata, ResourceChange
+from dss_provisioner.preview import PreviewProject, PreviewSpec
 
 runner = CliRunner()
 
@@ -339,6 +340,135 @@ class TestValidateCommand:
         result = runner.invoke(app, ["validate", "--no-color"])
         assert result.exit_code == 1
         assert "Validation failed" in result.output
+
+
+class TestPreviewCommand:
+    @staticmethod
+    def _preview_spec() -> PreviewSpec:
+        return PreviewSpec(
+            base_project_key="TEST",
+            branch="feature/new-scoring",
+            branch_slug="feature_new_scoring",
+            preview_project_key="TEST__FEATURE_NEW_SCORING",
+            preview_state_path=Path(".dss-state.preview.feature_new_scoring.json"),
+        )
+
+    @patch("dss_provisioner.preview.run_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_apply(
+        self,
+        mock_load: MagicMock,
+        mock_run_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_run_preview.return_value = (
+            self._preview_spec(),
+            _CREATE_PLAN,
+            ApplyResult(applied=_CREATE_PLAN.changes),
+        )
+
+        result = runner.invoke(app, ["preview", "--no-color", "--branch", "feature/new-scoring"])
+        assert result.exit_code == 0
+        assert "Preview project: TEST__FEATURE_NEW_SCORING" in result.stdout
+        mock_run_preview.assert_called_once()
+        _, kwargs = mock_run_preview.call_args
+        assert kwargs["branch"] == "feature/new-scoring"
+        assert kwargs["refresh"] is True
+        assert kwargs["force"] is False
+
+    @patch("dss_provisioner.preview.run_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_no_refresh_flag(
+        self,
+        mock_load: MagicMock,
+        mock_run_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_run_preview.return_value = (
+            self._preview_spec(),
+            _NOOP_PLAN,
+            ApplyResult(applied=[]),
+        )
+
+        result = runner.invoke(app, ["preview", "--no-color", "--no-refresh"])
+        assert result.exit_code == 0
+        _, kwargs = mock_run_preview.call_args
+        assert kwargs["refresh"] is False
+        assert kwargs["force"] is False
+
+    @patch("dss_provisioner.preview.run_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_force_flag(
+        self,
+        mock_load: MagicMock,
+        mock_run_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_run_preview.return_value = (
+            self._preview_spec(),
+            _NOOP_PLAN,
+            ApplyResult(applied=[]),
+        )
+
+        result = runner.invoke(app, ["preview", "--no-color", "--force"])
+        assert result.exit_code == 0
+        _, kwargs = mock_run_preview.call_args
+        assert kwargs["force"] is True
+
+    @patch("dss_provisioner.preview.destroy_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_destroy(
+        self,
+        mock_load: MagicMock,
+        mock_destroy_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_destroy_preview.return_value = (self._preview_spec(), True)
+
+        result = runner.invoke(app, ["preview", "--no-color", "--destroy"])
+        assert result.exit_code == 0
+        assert "Deleted preview project" in result.stdout
+        _, kwargs = mock_destroy_preview.call_args
+        assert kwargs["force"] is False
+
+    @patch("dss_provisioner.preview.destroy_preview")
+    @patch("dss_provisioner.config.load")
+    def test_preview_destroy_force_flag(
+        self,
+        mock_load: MagicMock,
+        mock_destroy_preview: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_destroy_preview.return_value = (self._preview_spec(), True)
+
+        result = runner.invoke(app, ["preview", "--no-color", "--destroy", "--force"])
+        assert result.exit_code == 0
+        _, kwargs = mock_destroy_preview.call_args
+        assert kwargs["force"] is True
+
+    @patch("dss_provisioner.preview.list_previews")
+    @patch("dss_provisioner.config.load")
+    def test_preview_list(
+        self,
+        mock_load: MagicMock,
+        mock_list_previews: MagicMock,
+    ) -> None:
+        mock_load.return_value = _mock_config()
+        mock_list_previews.return_value = [
+            PreviewProject(project_key="TEST__FEATURE_A", branch="feature/a"),
+            PreviewProject(project_key="TEST__FEATURE_B", branch=None),
+        ]
+
+        result = runner.invoke(app, ["preview", "--no-color", "--list"])
+        assert result.exit_code == 0
+        assert "Preview projects:" in result.stdout
+        assert "TEST__FEATURE_A (branch: feature/a)" in result.stdout
+        assert "TEST__FEATURE_B (branch: unknown)" in result.stdout
+
+    def test_preview_destroy_and_list_are_mutually_exclusive(self) -> None:
+        result = runner.invoke(app, ["preview", "--no-color", "--destroy", "--list"])
+        assert result.exit_code == 1
+        assert "Configuration error" in result.output
 
 
 class TestNoColor:
