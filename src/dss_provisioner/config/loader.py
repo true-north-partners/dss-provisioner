@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from dotenv import dotenv_values
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
-from dss_provisioner.config.schema import Config, ProviderConfig
+from dss_provisioner.config.schema import Config
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,35 @@ if TYPE_CHECKING:
 
 class ConfigError(Exception):
     """Raised for configuration loading / validation errors."""
+
+
+# Field name → environment variable.
+_PROVIDER_ENV_MAP: dict[str, str] = {
+    "host": "DSS_HOST",
+    "api_key": "DSS_API_KEY",
+    "project": "DSS_PROJECT",
+}
+
+
+def _resolve_provider(raw_provider: dict[str, Any], config_dir: Path) -> dict[str, Any]:
+    """Resolve provider fields from YAML, env vars, and ``.env`` file.
+
+    Priority (highest wins): YAML value > env var > ``.env`` file.
+    """
+    env_file = config_dir / ".env"
+    dotenv_vals = dotenv_values(env_file, encoding="utf-8-sig") if env_file.is_file() else {}
+
+    resolved: dict[str, Any] = {}
+    for field, env_key in _PROVIDER_ENV_MAP.items():
+        val = raw_provider.get(field)
+        if val is None:
+            val = os.environ.get(env_key)
+        if val is None:
+            val = dotenv_vals.get(env_key)
+        if val is not None:
+            resolved[field] = val
+
+    return resolved
 
 
 def _validate_unique_names(resources: list[Resource]) -> list[str]:
@@ -52,11 +83,7 @@ def load_config(path: Path | str) -> Config:
         raise ConfigError(f"Failed to read {path}: {exc}") from exc
 
     try:
-        env_file = path.parent / ".env"
-        raw["provider"] = ProviderConfig(
-            _env_file=env_file if env_file.is_file() else None,  # type: ignore[call-arg]
-            **raw.get("provider", {}),
-        )
+        raw["provider"] = _resolve_provider(raw.get("provider", {}), path.parent)
         config = Config.model_validate(raw)
     except ValidationError as exc:
         raise ConfigError(str(exc)) from exc
