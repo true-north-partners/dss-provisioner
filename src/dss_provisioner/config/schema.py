@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, Discriminator, PrivateAttr, computed_field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from dss_provisioner.config.modules import (
     ModuleSpec,  # noqa: TC001 — Pydantic needs this at runtime
@@ -57,19 +56,17 @@ from dss_provisioner.resources.zone import (
 )
 
 
-class ProviderConfig(BaseSettings):
+class ProviderConfig(BaseModel):
     """DSS provider connection settings.
 
-    Fields can be set via YAML (constructor kwargs), environment variables
-    with the ``DSS_`` prefix, or a ``.env`` file next to the config file.
+    Fields can be set via YAML, environment variables (``DSS_HOST``,
+    ``DSS_API_KEY``, ``DSS_PROJECT``), or a ``.env`` file next to the
+    config file.
 
     Priority (highest wins): YAML value > env var > ``.env`` file > default.
 
-    ``api_key`` is typically provided via the ``DSS_API_KEY`` environment
-    variable or ``.env`` file rather than YAML to avoid committing secrets.
+    Resolution is handled by :func:`~dss_provisioner.config.loader._resolve_provider`.
     """
-
-    model_config = SettingsConfigDict(env_prefix="DSS_")
 
     host: str | None = None
     api_key: str | None = None

@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.10",
-    "pydantic-settings>=2.7",
+    "python-dotenv>=1.0",
     "dataiku-api-client>=14.0",
     "ruamel-yaml>=0.18",
     "typer>=0.9",
