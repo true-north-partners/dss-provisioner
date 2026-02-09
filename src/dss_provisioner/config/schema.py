@@ -67,7 +67,7 @@ class ProviderConfig(BaseSettings):
     variable rather than YAML to avoid committing secrets to version control.
     """
 
-    model_config = SettingsConfigDict(env_prefix="DSS_")
+    model_config = SettingsConfigDict(env_prefix="DSS_", env_file=".env")
 
     host: str | None = None
     api_key: str | None = None

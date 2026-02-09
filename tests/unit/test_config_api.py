@@ -70,6 +70,21 @@ class TestProviderConfigEnvResolution:
         p = ProviderConfig(project="X")
         assert p.host == "https://from-env"
 
+    def test_api_key_from_dotenv_file(self, tmp_path, monkeypatch) -> None:
+        env_file = tmp_path / ".env"
+        env_file.write_text("DSS_API_KEY=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        p = ProviderConfig(project="X")
+        assert p.api_key == "from-dotenv"
+
+    def test_env_var_overrides_dotenv_file(self, tmp_path, monkeypatch) -> None:
+        env_file = tmp_path / ".env"
+        env_file.write_text("DSS_API_KEY=from-dotenv\n")
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("DSS_API_KEY", "from-env")
+        p = ProviderConfig(project="X")
+        assert p.api_key == "from-env"
+
 
 class TestLoadFunction:
     def test_load_returns_config(self, tmp_path) -> None:
