@@ -163,6 +163,8 @@ modules:
 | `api_key` | `DSS_API_KEY` | Yes | — | API key |
 | `project` | `DSS_PROJECT` | Yes | — | Target project key |
 
+A `.env` file next to the config file is loaded automatically (priority: YAML > env var > `.env` > default).
+
 ## Top-level fields
 
 | Field | Type | Default | Description |

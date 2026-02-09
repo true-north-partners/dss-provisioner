@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
-from dss_provisioner.config.schema import Config
+from dss_provisioner.config.schema import Config, ProviderConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,11 @@ def load_config(path: Path | str) -> Config:
         raise ConfigError(f"Failed to read {path}: {exc}") from exc
 
     try:
+        env_file = path.parent / ".env"
+        raw["provider"] = ProviderConfig(
+            _env_file=env_file if env_file.is_file() else None,  # type: ignore[call-arg]
+            **raw.get("provider", {}),
+        )
         config = Config.model_validate(raw)
     except ValidationError as exc:
         raise ConfigError(str(exc)) from exc

@@ -60,11 +60,13 @@ from dss_provisioner.resources.zone import (
 class ProviderConfig(BaseSettings):
     """DSS provider connection settings.
 
-    Fields can be set via YAML (constructor kwargs) or environment variables
-    with the ``DSS_`` prefix.  Constructor kwargs take precedence.
+    Fields can be set via YAML (constructor kwargs), environment variables
+    with the ``DSS_`` prefix, or a ``.env`` file next to the config file.
+
+    Priority (highest wins): YAML value > env var > ``.env`` file > default.
 
     ``api_key`` is typically provided via the ``DSS_API_KEY`` environment
-    variable rather than YAML to avoid committing secrets to version control.
+    variable or ``.env`` file rather than YAML to avoid committing secrets.
     """
 
     model_config = SettingsConfigDict(env_prefix="DSS_")
