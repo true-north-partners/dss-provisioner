@@ -53,6 +53,20 @@ class TestEngineFromConfig:
         with pytest.raises(ConfigError, match="api_key"):
             _engine_from_config(config)
 
+    def test_no_check_certificate_passed_to_provider(self) -> None:
+        config = Config(
+            provider=ProviderConfig(project="P", host="https://h", api_key="k", verify_ssl=False),
+        )
+        engine = _engine_from_config(config)
+        assert engine._provider.no_check_certificate is True
+
+    def test_verify_ssl_default_no_check_false(self) -> None:
+        config = Config(
+            provider=ProviderConfig(project="P", host="https://h", api_key="k"),
+        )
+        engine = _engine_from_config(config)
+        assert engine._provider.no_check_certificate is False
+
 
 class TestResolveProvider:
     """Unit tests for _resolve_provider priority chain (no YAML parsing)."""
@@ -102,6 +116,29 @@ class TestResolveProvider:
         result = _resolve_provider({"host": "https://h", "project": "P"}, tmp_path)
         assert result["api_key"] == "from-bom"
 
+    def test_verify_ssl_defaults_absent(self) -> None:
+        result = _resolve_provider({"project": "P"}, Path())
+        assert "verify_ssl" not in result
+
+    def test_verify_ssl_from_yaml(self) -> None:
+        result = _resolve_provider({"project": "P", "verify_ssl": False}, Path())
+        assert result["verify_ssl"] is False
+
+    def test_verify_ssl_from_env_var(self, monkeypatch) -> None:
+        monkeypatch.setenv("DSS_VERIFY_SSL", "false")
+        result = _resolve_provider({"project": "P"}, Path())
+        assert result["verify_ssl"] is False
+
+    def test_verify_ssl_from_dotenv(self, tmp_path) -> None:
+        (tmp_path / ".env").write_text("DSS_VERIFY_SSL=false\n")
+        result = _resolve_provider({"project": "P"}, tmp_path)
+        assert result["verify_ssl"] is False
+
+    def test_verify_ssl_invalid_string_raises(self, monkeypatch) -> None:
+        monkeypatch.setenv("DSS_VERIFY_SSL", "nope")
+        with pytest.raises(ConfigError, match=r"Invalid boolean.*DSS_VERIFY_SSL"):
+            _resolve_provider({"project": "P"}, Path())
+
 
 class TestLoadFunction:
     def test_load_returns_config(self, make_config) -> None:
@@ -129,6 +166,21 @@ class TestLoadFunction:
         monkeypatch.setenv("DSS_API_KEY", "env-secret")
         config = make_config("provider:\n  host: https://h\n  project: P\n")
         assert config.provider.api_key == "env-secret"
+
+    def test_verify_ssl_false_in_yaml(self, make_config) -> None:
+        config = make_config(
+            "provider:\n  host: https://h\n  api_key: k\n  project: P\n  verify_ssl: false\n"
+        )
+        assert config.provider.verify_ssl is False
+
+    def test_verify_ssl_from_env(self, make_config, monkeypatch) -> None:
+        monkeypatch.setenv("DSS_VERIFY_SSL", "false")
+        config = make_config("provider:\n  host: https://h\n  api_key: k\n  project: P\n")
+        assert config.provider.verify_ssl is False
+
+    def test_verify_ssl_default_true(self, make_config) -> None:
+        config = make_config("provider:\n  host: https://h\n  api_key: k\n  project: P\n")
+        assert config.provider.verify_ssl is True
 
 
 class TestPlanIntegration:

@@ -44,6 +44,7 @@ class DSSProvider(BaseModel):
 
     host: str | None = None
     auth: ApiKeyAuth | None = None
+    no_check_certificate: bool = False
 
     # Injected client (for internal use / testing)
     _injected_client: dataikuapi.DSSClient | None = None
@@ -79,6 +80,7 @@ class DSSProvider(BaseModel):
         return dataikuapi.DSSClient(
             self.host,
             api_key=self.auth.api_key.get_secret_value(),
+            no_check_certificate=self.no_check_certificate,
         )
 
     # Handlers for each DSS concept

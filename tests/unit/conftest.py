@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
     from dss_provisioner.config.schema import Config
 
-_DSS_ENV_VARS = ("DSS_HOST", "DSS_API_KEY", "DSS_PROJECT", "DSS_LOG")
+_DSS_ENV_VARS = ("DSS_HOST", "DSS_API_KEY", "DSS_PROJECT", "DSS_VERIFY_SSL", "DSS_LOG")
 
 
 @pytest.fixture(autouse=True)

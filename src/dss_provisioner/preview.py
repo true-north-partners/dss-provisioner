@@ -156,6 +156,7 @@ def _provider_from_config(config: Config) -> DSSProvider:
     return DSSProvider(
         host=config.provider.host,
         auth=ApiKeyAuth(api_key=SecretStr(config.provider.api_key)),
+        no_check_certificate=not config.provider.verify_ssl,
     )
 
 
