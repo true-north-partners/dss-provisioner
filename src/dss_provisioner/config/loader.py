@@ -29,6 +29,7 @@ _PROVIDER_ENV_MAP: dict[str, str] = {
     "host": "DSS_HOST",
     "api_key": "DSS_API_KEY",
     "project": "DSS_PROJECT",
+    "verify_ssl": "DSS_VERIFY_SSL",
 }
 
 

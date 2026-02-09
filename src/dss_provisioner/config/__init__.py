@@ -48,7 +48,11 @@ def _engine_from_config(config: Config) -> DSSEngine:
     if not config.provider.api_key:
         raise ConfigError("provider.api_key is required (set DSS_API_KEY env var)")
     auth = ApiKeyAuth(api_key=SecretStr(config.provider.api_key))
-    provider = DSSProvider(host=config.provider.host, auth=auth)
+    provider = DSSProvider(
+        host=config.provider.host,
+        auth=auth,
+        no_check_certificate=not config.provider.verify_ssl,
+    )
     return DSSEngine(
         provider=provider,
         project_key=config.provider.project,

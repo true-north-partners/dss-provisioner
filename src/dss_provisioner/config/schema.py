@@ -71,6 +71,7 @@ class ProviderConfig(BaseModel):
     host: str | None = None
     api_key: str | None = None
     project: str
+    verify_ssl: bool = True
 
 
 def _none_to_list(v: Any) -> Any:
