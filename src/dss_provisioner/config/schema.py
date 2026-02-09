@@ -61,7 +61,7 @@ class ProviderConfig(BaseSettings):
     """DSS provider connection settings.
 
     Fields can be set via YAML (constructor kwargs), environment variables
-    with the ``DSS_`` prefix, or a ``.env`` file in the working directory.
+    with the ``DSS_`` prefix, or a ``.env`` file next to the config file.
 
     Priority (highest wins): YAML value > env var > ``.env`` file > default.
 
@@ -69,7 +69,7 @@ class ProviderConfig(BaseSettings):
     variable or ``.env`` file rather than YAML to avoid committing secrets.
     """
 
-    model_config = SettingsConfigDict(env_prefix="DSS_", env_file=".env")
+    model_config = SettingsConfigDict(env_prefix="DSS_")
 
     host: str | None = None
     api_key: str | None = None

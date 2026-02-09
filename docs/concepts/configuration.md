@@ -55,7 +55,7 @@ The `provider` block configures the DSS connection. All fields support environme
 !!! tip
     Use environment variables for `host` and `api_key` to avoid committing secrets. Omit `api_key` from YAML entirely and set `DSS_API_KEY` in the environment instead.
 
-A `.env` file in the current working directory is loaded automatically. This is convenient for local development:
+A `.env` file next to the config file is loaded automatically. This is convenient for local development:
 
 ```dotenv
 # .env
