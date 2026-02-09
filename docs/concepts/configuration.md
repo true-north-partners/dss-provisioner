@@ -46,11 +46,12 @@ recipes:
 
 The `provider` block configures the DSS connection. All fields support environment variable fallbacks with the `DSS_` prefix:
 
-| Field | Env var | Required | Description |
-|---|---|---|---|
-| `host` | `DSS_HOST` | Yes | DSS instance URL |
-| `api_key` | `DSS_API_KEY` | Yes | API key for authentication |
-| `project` | `DSS_PROJECT` | Yes | Target DSS project key |
+| Field | Env var | Required | Default | Description |
+|---|---|---|---|---|
+| `host` | `DSS_HOST` | Yes | — | DSS instance URL |
+| `api_key` | `DSS_API_KEY` | Yes | — | API key for authentication |
+| `project` | `DSS_PROJECT` | Yes | — | Target DSS project key |
+| `verify_ssl` | `DSS_VERIFY_SSL` | No | `true` | Verify SSL certificates. Set `false` for self-signed certs |
 
 !!! tip
     Use environment variables for `host` and `api_key` to avoid committing secrets. Omit `api_key` from YAML entirely and set `DSS_API_KEY` in the environment instead.

@@ -162,6 +162,7 @@ modules:
 | `host` | `DSS_HOST` | Yes | — | DSS instance URL |
 | `api_key` | `DSS_API_KEY` | Yes | — | API key |
 | `project` | `DSS_PROJECT` | Yes | — | Target project key |
+| `verify_ssl` | `DSS_VERIFY_SSL` | No | `true` | Verify SSL certificates. Set `false` for self-signed certs |
 
 A `.env` file next to the config file is loaded automatically (priority: YAML > env var > `.env` > default).
 
