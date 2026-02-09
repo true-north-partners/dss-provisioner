@@ -1326,6 +1326,7 @@
 <th>Field</th>
 <th>Env var</th>
 <th>Required</th>
+<th>Default</th>
 <th>Description</th>
 </tr>
 </thead>
@@ -1334,19 +1335,29 @@
 <td><code>host</code></td>
 <td><code>DSS_HOST</code></td>
 <td>Yes</td>
+<td>—</td>
 <td>DSS instance URL</td>
 </tr>
 <tr>
 <td><code>api_key</code></td>
 <td><code>DSS_API_KEY</code></td>
 <td>Yes</td>
+<td>—</td>
 <td>API key for authentication</td>
 </tr>
 <tr>
 <td><code>project</code></td>
 <td><code>DSS_PROJECT</code></td>
 <td>Yes</td>
+<td>—</td>
 <td>Target DSS project key</td>
+</tr>
+<tr>
+<td><code>verify_ssl</code></td>
+<td><code>DSS_VERIFY_SSL</code></td>
+<td>No</td>
+<td><code>true</code></td>
+<td>Verify SSL certificates. Set <code>false</code> for self-signed certs</td>
 </tr>
 </tbody>
 </table>
