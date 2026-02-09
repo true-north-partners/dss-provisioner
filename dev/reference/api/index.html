@@ -2890,10 +2890,11 @@
 
 
         <p>DSS provider connection settings.</p>
-<p>Fields can be set via YAML (constructor kwargs) or environment variables
-with the <code>DSS_</code> prefix.  Constructor kwargs take precedence.</p>
+<p>Fields can be set via YAML (constructor kwargs), environment variables
+with the <code>DSS_</code> prefix, or a <code>.env</code> file next to the config file.</p>
+<p>Priority (highest wins): YAML value &gt; env var &gt; <code>.env</code> file &gt; default.</p>
 <p><code>api_key</code> is typically provided via the <code>DSS_API_KEY</code> environment
-variable rather than YAML to avoid committing secrets to version control.</p>
+variable or <code>.env</code> file rather than YAML to avoid committing secrets.</p>
 
 
 
