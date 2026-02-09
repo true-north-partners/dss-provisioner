@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from dotenv import dotenv_values
 from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.constructor import SafeConstructor
 
 from dss_provisioner.config.modules import ModuleExpansionError, expand_modules
 from dss_provisioner.config.schema import Config
@@ -32,6 +33,8 @@ _PROVIDER_ENV_MAP: dict[str, str] = {
     "verify_ssl": "DSS_VERIFY_SSL",
 }
 
+_PROVIDER_BOOL_FIELDS: frozenset[str] = frozenset({"verify_ssl"})
+
 
 def _resolve_provider(raw_provider: dict[str, Any], config_dir: Path) -> dict[str, Any]:
     """Resolve provider fields from YAML, env vars, and ``.env`` file.
@@ -49,6 +52,10 @@ def _resolve_provider(raw_provider: dict[str, Any], config_dir: Path) -> dict[st
         if val is None:
             val = dotenv_vals.get(env_key)
         if val is not None:
+            if field in _PROVIDER_BOOL_FIELDS and isinstance(val, str):
+                if val.lower() not in SafeConstructor.bool_values:
+                    raise ConfigError(f"Invalid boolean for {env_key}: {val!r}")
+                val = SafeConstructor.bool_values[val.lower()]
             resolved[field] = val
 
     return resolved

@@ -60,8 +60,8 @@ class ProviderConfig(BaseModel):
     """DSS provider connection settings.
 
     Fields can be set via YAML, environment variables (``DSS_HOST``,
-    ``DSS_API_KEY``, ``DSS_PROJECT``), or a ``.env`` file next to the
-    config file.
+    ``DSS_API_KEY``, ``DSS_PROJECT``, ``DSS_VERIFY_SSL``), or a ``.env``
+    file next to the config file.
 
     Priority (highest wins): YAML value > env var > ``.env`` file > default.
 

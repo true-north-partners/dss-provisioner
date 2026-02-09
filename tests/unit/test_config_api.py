@@ -127,12 +127,17 @@ class TestResolveProvider:
     def test_verify_ssl_from_env_var(self, monkeypatch) -> None:
         monkeypatch.setenv("DSS_VERIFY_SSL", "false")
         result = _resolve_provider({"project": "P"}, Path())
-        assert result["verify_ssl"] == "false"
+        assert result["verify_ssl"] is False
 
     def test_verify_ssl_from_dotenv(self, tmp_path) -> None:
         (tmp_path / ".env").write_text("DSS_VERIFY_SSL=false\n")
         result = _resolve_provider({"project": "P"}, tmp_path)
-        assert result["verify_ssl"] == "false"
+        assert result["verify_ssl"] is False
+
+    def test_verify_ssl_invalid_string_raises(self, monkeypatch) -> None:
+        monkeypatch.setenv("DSS_VERIFY_SSL", "nope")
+        with pytest.raises(ConfigError, match=r"Invalid boolean.*DSS_VERIFY_SSL"):
+            _resolve_provider({"project": "P"}, Path())
 
 
 class TestLoadFunction:
