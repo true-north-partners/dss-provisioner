@@ -2885,16 +2885,16 @@
 
     <div class="doc doc-contents first">
             <p class="doc doc-class-bases">
-              Bases: <code><span title="pydantic_settings.BaseSettings">BaseSettings</span></code></p>
+              Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
 
 
 
         <p>DSS provider connection settings.</p>
-<p>Fields can be set via YAML (constructor kwargs), environment variables
-with the <code>DSS_</code> prefix, or a <code>.env</code> file next to the config file.</p>
+<p>Fields can be set via YAML, environment variables (<code>DSS_HOST</code>,
+<code>DSS_API_KEY</code>, <code>DSS_PROJECT</code>), or a <code>.env</code> file next to the
+config file.</p>
 <p>Priority (highest wins): YAML value &gt; env var &gt; <code>.env</code> file &gt; default.</p>
-<p><code>api_key</code> is typically provided via the <code>DSS_API_KEY</code> environment
-variable or <code>.env</code> file rather than YAML to avoid committing secrets.</p>
+<p>Resolution is handled by :func:<code>~dss_provisioner.config.loader._resolve_provider</code>.</p>
 
 
 
