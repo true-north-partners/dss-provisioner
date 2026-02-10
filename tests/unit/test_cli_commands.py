@@ -567,3 +567,37 @@ class TestConfigureLogging:
         mock_bc.assert_called_once()
         assert logging.getLogger("dss_provisioner").level == logging.INFO
         assert "invalid DSS_LOG level" in capsys.readouterr().err
+
+
+class TestInsecureRequestWarningSuppression:
+    @patch("urllib3.disable_warnings")
+    @patch("dss_provisioner.config.load")
+    def test_verify_ssl_false_suppresses_warning(
+        self, mock_load: MagicMock, mock_disable: MagicMock
+    ) -> None:
+        import urllib3
+
+        from dss_provisioner.cli.commands import _load_config
+
+        cfg = _mock_config()
+        cfg.provider.verify_ssl = False
+        mock_load.return_value = cfg
+
+        _load_config(Path("test.yaml"))
+
+        mock_disable.assert_called_once_with(urllib3.exceptions.InsecureRequestWarning)
+
+    @patch("urllib3.disable_warnings")
+    @patch("dss_provisioner.config.load")
+    def test_verify_ssl_true_does_not_suppress_warning(
+        self, mock_load: MagicMock, mock_disable: MagicMock
+    ) -> None:
+        from dss_provisioner.cli.commands import _load_config
+
+        cfg = _mock_config()
+        cfg.provider.verify_ssl = True
+        mock_load.return_value = cfg
+
+        _load_config(Path("test.yaml"))
+
+        mock_disable.assert_not_called()
