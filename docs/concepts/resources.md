@@ -237,6 +237,7 @@ datasets:
   - name: my_table
     type: snowflake
     connection: snowflake_prod
+    mode: table             # table (default) or query
     schema_name: RAW
     table: CUSTOMERS
     catalog: MY_DB          # optional

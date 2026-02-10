@@ -128,6 +128,7 @@ class TestSnowflakeDatasetResource:
             name="my_ds", connection="snowflake_conn", schema_name="PUBLIC", table="users"
         )
         assert ds.type == "Snowflake"
+        assert ds.mode == "table"
         assert ds.write_mode == "OVERWRITE"
         assert ds.catalog is None
 
@@ -166,6 +167,7 @@ class TestSnowflakeDatasetResource:
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
         assert dump["type"] == "Snowflake"
         assert dump["connection"] == "snowflake_conn"
+        assert dump["mode"] == "table"
         assert dump["schema_name"] == "PUBLIC"
         assert dump["table"] == "users"
         assert dump["write_mode"] == "APPEND"
@@ -191,6 +193,7 @@ class TestSnowflakeDatasetResource:
         )
         assert ds.to_dss_params() == {
             "connection": "sf_conn",
+            "mode": "table",
             "schema": "PUBLIC",
             "table": "users",
             "catalog": "MY_CAT",
@@ -217,6 +220,7 @@ class TestOracleDatasetResource:
             name="my_ds", connection="oracle_conn", schema_name="HR", table="employees"
         )
         assert ds.type == "Oracle"
+        assert ds.mode == "table"
 
     def test_required_fields(self) -> None:
         with pytest.raises(ValidationError):
@@ -252,6 +256,7 @@ class TestOracleDatasetResource:
         dump = ds.model_dump(exclude_none=True, exclude={"address"})
         assert dump["type"] == "Oracle"
         assert dump["connection"] == "oracle_conn"
+        assert dump["mode"] == "table"
         assert dump["schema_name"] == "HR"
         assert dump["table"] == "employees"
 
@@ -261,6 +266,7 @@ class TestOracleDatasetResource:
         )
         assert ds.to_dss_params() == {
             "connection": "ora_conn",
+            "mode": "table",
             "schema": "HR",
             "table": "employees",
         }

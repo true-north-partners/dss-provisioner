@@ -149,6 +149,7 @@ class TestCreateSnowflakeDataset:
             "Snowflake",
             params={
                 "connection": "sf_conn",
+                "mode": "table",
                 "schema": "PUBLIC",
                 "table": "users",
                 "writeMode": "OVERWRITE",
@@ -166,6 +167,7 @@ class TestCreateSnowflakeDataset:
             "Snowflake",
             params={
                 "connection": "sf_conn",
+                "mode": "table",
                 "schema": "PUBLIC",
                 "table": "users",
                 "writeMode": "OVERWRITE",
@@ -183,7 +185,12 @@ class TestCreateOracleDataset:
     ) -> None:
         raw = _make_raw(
             "Oracle",
-            params={"connection": "ora_conn", "schema": "HR", "table": "employees"},
+            params={
+                "connection": "ora_conn",
+                "mode": "table",
+                "schema": "HR",
+                "table": "employees",
+            },
         )
         mock_dataset.get_settings.return_value.get_raw.return_value = raw
 
@@ -197,6 +204,7 @@ class TestCreateOracleDataset:
             "Oracle",
             params={
                 "connection": "ora_conn",
+                "mode": "table",
                 "schema": "HR",
                 "table": "employees",
             },
@@ -643,6 +651,7 @@ class TestEngineIntegrationRoundtrip:
             "Snowflake",
             params={
                 "connection": "sf_conn",
+                "mode": "table",
                 "schema": "PUBLIC",
                 "table": "users",
                 "writeMode": "OVERWRITE",
@@ -676,7 +685,12 @@ class TestEngineIntegrationRoundtrip:
     def test_oracle_roundtrip(self, tmp_path: Path) -> None:
         raw = _make_raw(
             "Oracle",
-            params={"connection": "ora_conn", "schema": "HR", "table": "employees"},
+            params={
+                "connection": "ora_conn",
+                "mode": "table",
+                "schema": "HR",
+                "table": "employees",
+            },
         )
         engine, *_ = _setup_engine(tmp_path, raw)
 
