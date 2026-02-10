@@ -2847,7 +2847,19 @@
 <td><code>table</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Table name (non-empty)</td>
+<td>Required when <code>mode: table</code>. Table name (non-empty)</td>
+</tr>
+<tr>
+<td><code>query</code></td>
+<td>string</td>
+<td>—</td>
+<td>Inline SQL query (query mode only). Mutually exclusive with <code>query_file</code></td>
+</tr>
+<tr>
+<td><code>query_file</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to SQL file, relative to config (query mode only). Mutually exclusive with <code>query</code></td>
 </tr>
 <tr>
 <td><code>catalog</code></td>
@@ -2863,6 +2875,7 @@
 </tr>
 </tbody>
 </table>
+<p>If <code>mode: query</code> and neither <code>query</code> nor <code>query_file</code> is set, the provisioner looks for <code>queries/{name}.sql</code> by convention.</p>
 <h3 id="oracle-specific-fields">Oracle-specific fields<a class="headerlink" href="#oracle-specific-fields" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -2896,10 +2909,23 @@
 <td><code>table</code></td>
 <td>string</td>
 <td>—</td>
-<td><strong>Required.</strong> Table name (non-empty)</td>
+<td>Required when <code>mode: table</code>. Table name (non-empty)</td>
+</tr>
+<tr>
+<td><code>query</code></td>
+<td>string</td>
+<td>—</td>
+<td>Inline SQL query (query mode only). Mutually exclusive with <code>query_file</code></td>
+</tr>
+<tr>
+<td><code>query_file</code></td>
+<td>string</td>
+<td>—</td>
+<td>Path to SQL file, relative to config (query mode only). Mutually exclusive with <code>query</code></td>
 </tr>
 </tbody>
 </table>
+<p>If <code>mode: query</code> and neither <code>query</code> nor <code>query_file</code> is set, the provisioner looks for <code>queries/{name}.sql</code> by convention.</p>
 <h3 id="filesystem-specific-fields_1">Filesystem-specific fields<a class="headerlink" href="#filesystem-specific-fields_1" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -3427,7 +3453,9 @@
 <li><strong>Recipe outputs</strong>: at least one output is required</li>
 <li><strong>SQL recipe inputs</strong>: at least one input is required</li>
 <li><strong>Zone color</strong>: must be a valid hex color in <code>#RRGGBB</code> format</li>
-<li><strong>Snowflake/Oracle <code>schema_name</code> and <code>table</code></strong>: must be non-empty</li>
+<li><strong>Snowflake/Oracle <code>schema_name</code></strong>: must be non-empty</li>
+<li><strong>Snowflake/Oracle <code>table</code></strong>: required when <code>mode: table</code>; forbidden when <code>mode: query</code></li>
+<li><strong>Snowflake/Oracle <code>query</code>/<code>query_file</code></strong>: mutually exclusive; forbidden when <code>mode: table</code></li>
 <li><strong>Filesystem <code>path</code></strong>: must be non-empty</li>
 <li><strong>Git library <code>repository</code></strong>: must be non-empty</li>
 </ul>
