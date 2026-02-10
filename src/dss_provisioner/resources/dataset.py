@@ -60,6 +60,7 @@ class SnowflakeDatasetResource(DatasetResource):
 
     type: Literal["Snowflake"] = "Snowflake"
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
+    mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
     catalog: Annotated[str | None, DSSParam("params.catalog")] = None
@@ -76,6 +77,7 @@ class OracleDatasetResource(DatasetResource):
 
     type: Literal["Oracle"] = "Oracle"
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
+    mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
 

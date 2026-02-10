@@ -295,6 +295,7 @@ Upload managed folders have no additional required fields.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `connection` | string | — | **Required.** Snowflake connection name |
+| `mode` | string | `table` | `table` or `query` |
 | `schema_name` | string | — | **Required.** Snowflake schema (non-empty) |
 | `table` | string | — | **Required.** Table name (non-empty) |
 | `catalog` | string | — | Snowflake database/catalog |
@@ -305,6 +306,7 @@ Upload managed folders have no additional required fields.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `connection` | string | — | **Required.** Oracle connection name |
+| `mode` | string | `table` | `table` or `query` |
 | `schema_name` | string | — | **Required.** Oracle schema (non-empty) |
 | `table` | string | — | **Required.** Table name (non-empty) |
 

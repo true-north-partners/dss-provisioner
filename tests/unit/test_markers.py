@@ -203,6 +203,7 @@ class TestSnowflakeToDssParams:
         )
         assert ds.to_dss_params() == {
             "connection": "sf_conn",
+            "mode": "table",
             "schema": "PUBLIC",
             "table": "users",
             "catalog": "MY_CAT",
@@ -217,6 +218,7 @@ class TestSnowflakeToDssParams:
         assert "catalog" not in params
         assert params == {
             "connection": "sf_conn",
+            "mode": "table",
             "schema": "PUBLIC",
             "table": "users",
             "writeMode": "OVERWRITE",
@@ -230,6 +232,7 @@ class TestOracleToDssParams:
         )
         assert ds.to_dss_params() == {
             "connection": "ora_conn",
+            "mode": "table",
             "schema": "HR",
             "table": "employees",
         }
