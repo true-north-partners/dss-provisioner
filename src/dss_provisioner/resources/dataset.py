@@ -63,7 +63,7 @@ class SnowflakeDatasetResource(DatasetResource):
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str | None, DSSParam("params.table")] = None
-    query: Annotated[str | None, DSSParam("params.queryString")] = Field(default=None, min_length=1)
+    query: Annotated[str | None, DSSParam("params.query")] = Field(default=None, min_length=1)
     query_file: str | None = Field(default=None, exclude=True)
     catalog: Annotated[str | None, DSSParam("params.catalog")] = None
     write_mode: Annotated[
@@ -96,7 +96,7 @@ class OracleDatasetResource(DatasetResource):
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str | None, DSSParam("params.table")] = None
-    query: Annotated[str | None, DSSParam("params.queryString")] = Field(default=None, min_length=1)
+    query: Annotated[str | None, DSSParam("params.query")] = Field(default=None, min_length=1)
     query_file: str | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")

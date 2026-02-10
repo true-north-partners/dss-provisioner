@@ -865,7 +865,7 @@ class TestSnowflakeQueryModeRoundtrip:
                 "connection": "sf_conn",
                 "mode": "query",
                 "schema": "PUBLIC",
-                "queryString": "SELECT * FROM users",
+                "query": "SELECT * FROM users",
                 "writeMode": "OVERWRITE",
             },
         )
@@ -887,7 +887,7 @@ class TestSnowflakeQueryModeRoundtrip:
         assert plan2.changes[0].action == Action.NOOP
 
         # UPDATE — change query
-        raw["params"]["queryString"] = "SELECT id FROM users"
+        raw["params"]["query"] = "SELECT id FROM users"
         ds_updated = SnowflakeDatasetResource(
             name="sf_ds",
             connection="sf_conn",
@@ -914,7 +914,7 @@ class TestOracleQueryModeRoundtrip:
                 "connection": "ora_conn",
                 "mode": "query",
                 "schema": "HR",
-                "queryString": "SELECT * FROM employees",
+                "query": "SELECT * FROM employees",
             },
         )
         engine, *_ = _setup_engine(tmp_path, raw)

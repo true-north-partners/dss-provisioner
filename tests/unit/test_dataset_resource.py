@@ -216,7 +216,7 @@ class TestSnowflakeDatasetResource:
             query="SELECT * FROM users",
         )
         params = ds.to_dss_params()
-        assert params["queryString"] == "SELECT * FROM users"
+        assert params["query"] == "SELECT * FROM users"
         assert "table" not in params
 
     def test_query_mode_with_query_file(self) -> None:
@@ -284,7 +284,7 @@ class TestSnowflakeDatasetResource:
             query="SELECT * FROM t",
         )
         params = ds.to_dss_params()
-        assert params["queryString"] == "SELECT * FROM t"
+        assert params["query"] == "SELECT * FROM t"
         assert params["mode"] == "query"
         assert "table" not in params
 
@@ -298,7 +298,7 @@ class TestSnowflakeDatasetResource:
         params = ds.to_dss_params()
         assert params["table"] == "users"
         assert params["mode"] == "table"
-        assert "queryString" not in params
+        assert "query" not in params
 
 
 class TestOracleDatasetResource:
@@ -373,7 +373,7 @@ class TestOracleDatasetResource:
             query="SELECT * FROM employees",
         )
         params = ds.to_dss_params()
-        assert params["queryString"] == "SELECT * FROM employees"
+        assert params["query"] == "SELECT * FROM employees"
         assert "table" not in params
 
     def test_query_mode_with_query_file(self) -> None:
@@ -441,7 +441,7 @@ class TestOracleDatasetResource:
             query="SELECT * FROM t",
         )
         params = ds.to_dss_params()
-        assert params["queryString"] == "SELECT * FROM t"
+        assert params["query"] == "SELECT * FROM t"
         assert params["mode"] == "query"
         assert "table" not in params
 
@@ -455,7 +455,7 @@ class TestOracleDatasetResource:
         params = ds.to_dss_params()
         assert params["table"] == "employees"
         assert params["mode"] == "table"
-        assert "queryString" not in params
+        assert "query" not in params
 
 
 class TestFilesystemDatasetResource:
