@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from dss_provisioner.resources.base import Resource
 from dss_provisioner.resources.markers import Compare, DSSParam, Ref, build_dss_params
@@ -62,11 +62,27 @@ class SnowflakeDatasetResource(DatasetResource):
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
-    table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
+    table: Annotated[str | None, DSSParam("params.table")] = None
+    query: Annotated[str | None, DSSParam("params.queryString")] = None
+    query_file: str | None = Field(default=None, exclude=True)
     catalog: Annotated[str | None, DSSParam("params.catalog")] = None
     write_mode: Annotated[
         Literal["OVERWRITE", "APPEND", "TRUNCATE"], DSSParam("params.writeMode")
     ] = "OVERWRITE"
+
+    @model_validator(mode="after")
+    def _check_mode_fields(self) -> Self:
+        if self.mode == "table":
+            if not self.table:
+                raise ValueError("'table' is required when mode is 'table'")
+            if self.query is not None or self.query_file is not None:
+                raise ValueError("'query'/'query_file' cannot be used when mode is 'table'")
+        elif self.mode == "query":
+            if self.table is not None:
+                raise ValueError("'table' cannot be used when mode is 'query'")
+            if self.query and self.query_file:
+                raise ValueError("Cannot set both 'query' and 'query_file'")
+        return self
 
 
 class OracleDatasetResource(DatasetResource):
@@ -79,7 +95,23 @@ class OracleDatasetResource(DatasetResource):
     connection: Annotated[str, DSSParam("params.connection")]  # type: ignore[assignment]
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
-    table: Annotated[str, DSSParam("params.table")] = Field(min_length=1)
+    table: Annotated[str | None, DSSParam("params.table")] = None
+    query: Annotated[str | None, DSSParam("params.queryString")] = None
+    query_file: str | None = Field(default=None, exclude=True)
+
+    @model_validator(mode="after")
+    def _check_mode_fields(self) -> Self:
+        if self.mode == "table":
+            if not self.table:
+                raise ValueError("'table' is required when mode is 'table'")
+            if self.query is not None or self.query_file is not None:
+                raise ValueError("'query'/'query_file' cannot be used when mode is 'table'")
+        elif self.mode == "query":
+            if self.table is not None:
+                raise ValueError("'table' cannot be used when mode is 'query'")
+            if self.query and self.query_file:
+                raise ValueError("Cannot set both 'query' and 'query_file'")
+        return self
 
 
 class FilesystemDatasetResource(DatasetResource):

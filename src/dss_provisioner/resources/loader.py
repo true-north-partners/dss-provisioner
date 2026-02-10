@@ -6,6 +6,7 @@ import ast
 import textwrap
 from typing import TYPE_CHECKING
 
+from dss_provisioner.resources.dataset import OracleDatasetResource, SnowflakeDatasetResource
 from dss_provisioner.resources.recipe import PythonRecipeResource, SQLQueryRecipeResource
 from dss_provisioner.resources.scenario import PythonScenarioResource
 
@@ -16,43 +17,46 @@ if TYPE_CHECKING:
     from dss_provisioner.resources.base import Resource
 
 _CodeResource = PythonRecipeResource | SQLQueryRecipeResource | PythonScenarioResource
+_QueryResource = SnowflakeDatasetResource | OracleDatasetResource
 
 _CODE_EXTENSIONS: dict[str, str] = {
     "dss_python_recipe": ".py",
     "dss_sql_query_recipe": ".sql",
     "dss_python_scenario": ".py",
+    "dss_snowflake_dataset": ".sql",
+    "dss_oracle_dataset": ".sql",
 }
 
 _CODE_DIRS: dict[str, str] = {
     "dss_python_recipe": "recipes",
     "dss_sql_query_recipe": "recipes",
     "dss_python_scenario": "scenarios",
+    "dss_snowflake_dataset": "queries",
+    "dss_oracle_dataset": "queries",
 }
 
 
 def resolve_code_files(resources: Iterable[Resource], base_dir: Path) -> list[Resource]:
-    """Resolve ``code_file`` references and convention paths for code-bearing resources.
+    """Resolve ``code_file``/``query_file`` references and convention paths.
 
-    For each resource with a ``code`` field:
+    Handles two categories:
 
-    1. **Explicit code_file** — read ``base_dir / code_file``.
-    2. **Convention** (no ``code_file``, empty ``code``) — try
-       ``base_dir / "{dir}" / "{name}{ext}"`` where ``{dir}`` is type-dependent
-       (``recipes/`` for recipes, ``scenarios/`` for scenarios).
-    3. **Already has code** — skip.
-
-    After reading, if ``code_wrapper`` is True (Python recipes only), the raw file
-    content is wrapped in DSS boilerplate.
+    * **Code-bearing** resources (recipes, scenarios) — resolves ``code_file``
+      or discovers ``{dir}/{name}{ext}`` by convention.
+    * **Query-bearing** datasets (Snowflake, Oracle in query mode) — resolves
+      ``query_file`` or discovers ``queries/{name}.sql`` by convention.
     """
     result: list[Resource] = []
     for resource in resources:
-        if not isinstance(resource, _CodeResource):
-            result.append(resource)
-            continue
+        if isinstance(resource, _CodeResource):
+            content = _read_code(resource, base_dir)
+            if content is not None:
+                resource.code = _maybe_wrap(resource, content)
+        elif isinstance(resource, _QueryResource):
+            content = _read_query(resource, base_dir)
+            if content is not None:
+                resource.query = content
 
-        content = _read_code(resource, base_dir)
-        if content is not None:
-            resource.code = _maybe_wrap(resource, content)
         result.append(resource)
 
     return result
@@ -76,6 +80,29 @@ def _read_code(resource: _CodeResource, base_dir: Path) -> str | None:
         return None
 
     code_dir = _CODE_DIRS.get(resource.resource_type, "recipes")
+    convention_path = base_dir / code_dir / f"{resource.name}{ext}"
+    if convention_path.exists():
+        return convention_path.read_text()
+
+    return None
+
+
+def _read_query(resource: _QueryResource, base_dir: Path) -> str | None:
+    """Read SQL from an explicit query_file, convention path, or return None to skip."""
+    if resource.mode != "query":
+        return None
+
+    if resource.query_file:
+        return (base_dir / resource.query_file).read_text()
+
+    if resource.query:
+        return None  # already has inline query
+
+    ext = _CODE_EXTENSIONS.get(resource.resource_type)
+    if ext is None:
+        return None
+
+    code_dir = _CODE_DIRS.get(resource.resource_type, "queries")
     convention_path = base_dir / code_dir / f"{resource.name}{ext}"
     if convention_path.exists():
         return convention_path.read_text()

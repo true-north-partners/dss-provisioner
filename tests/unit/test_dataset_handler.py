@@ -857,6 +857,84 @@ class TestEngineIntegrationRoundtrip:
         assert plan2.changes[0].action == Action.NOOP
 
 
+class TestSnowflakeQueryModeRoundtrip:
+    def test_create_noop_update_delete_cycle(self, tmp_path: Path) -> None:
+        raw = _make_raw(
+            "Snowflake",
+            params={
+                "connection": "sf_conn",
+                "mode": "query",
+                "schema": "PUBLIC",
+                "queryString": "SELECT * FROM users",
+                "writeMode": "OVERWRITE",
+            },
+        )
+        engine, _project, dataset = _setup_engine(tmp_path, raw)
+
+        ds = SnowflakeDatasetResource(
+            name="sf_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query="SELECT * FROM users",
+        )
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # NOOP — verify attributes roundtrip correctly
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
+        # UPDATE — change query
+        raw["params"]["queryString"] = "SELECT id FROM users"
+        ds_updated = SnowflakeDatasetResource(
+            name="sf_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query="SELECT id FROM users",
+        )
+        plan3 = engine.plan([ds_updated])
+        assert plan3.changes[0].action == Action.NOOP  # read refreshed the state
+
+        # DELETE
+        dataset.exists.return_value = True
+        plan4 = engine.plan([])
+        assert any(c.action == Action.DELETE for c in plan4.changes)
+        engine.apply(plan4)
+        dataset.delete.assert_called_once()
+
+
+class TestOracleQueryModeRoundtrip:
+    def test_create_noop_cycle(self, tmp_path: Path) -> None:
+        raw = _make_raw(
+            "Oracle",
+            params={
+                "connection": "ora_conn",
+                "mode": "query",
+                "schema": "HR",
+                "queryString": "SELECT * FROM employees",
+            },
+        )
+        engine, *_ = _setup_engine(tmp_path, raw)
+
+        ds = OracleDatasetResource(
+            name="ora_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            mode="query",
+            query="SELECT * FROM employees",
+        )
+        plan = engine.plan([ds])
+        assert plan.changes[0].action == Action.CREATE
+        engine.apply(plan)
+
+        # NOOP — verify attributes roundtrip correctly
+        plan2 = engine.plan([ds])
+        assert plan2.changes[0].action == Action.NOOP
+
+
 class TestResolveVariables:
     """Unit tests for DSS variable substitution."""
 

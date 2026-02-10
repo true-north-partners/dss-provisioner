@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
+from dss_provisioner.resources.dataset import SnowflakeDatasetResource
 from dss_provisioner.resources.loader import (
     _find_entry_function,
     _wrap_python_code,
@@ -242,3 +243,86 @@ class TestResolveErrors:
         )
         with pytest.raises(ValueError, match="No public function"):
             resolve_code_files([r], tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# resolve_code_files — query file resolution for datasets
+# ---------------------------------------------------------------------------
+
+
+class TestResolveQueryFiles:
+    def test_explicit_query_file(self, tmp_path: Path) -> None:
+        (tmp_path / "queries").mkdir()
+        (tmp_path / "queries" / "my_ds.sql").write_text("SELECT * FROM users")
+
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query_file="queries/my_ds.sql",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query == "SELECT * FROM users"  # type: ignore[union-attr]
+
+    def test_convention_path(self, tmp_path: Path) -> None:
+        (tmp_path / "queries").mkdir()
+        (tmp_path / "queries" / "my_ds.sql").write_text("SELECT 1")
+
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query == "SELECT 1"  # type: ignore[union-attr]
+
+    def test_convention_missing_skips(self, tmp_path: Path) -> None:
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query is None  # type: ignore[union-attr]
+
+    def test_inline_query_preserved(self, tmp_path: Path) -> None:
+        (tmp_path / "queries").mkdir()
+        (tmp_path / "queries" / "my_ds.sql").write_text("SELECT 999")
+
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query="SELECT 1",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query == "SELECT 1"  # type: ignore[union-attr]
+
+    def test_table_mode_passed_through(self, tmp_path: Path) -> None:
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            table="users",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query is None  # type: ignore[union-attr]
+        assert resolved[0].table == "users"  # type: ignore[union-attr]
+
+    def test_table_mode_ignores_convention_file(self, tmp_path: Path) -> None:
+        """A queries/{name}.sql file must not be picked up for table-mode datasets."""
+        (tmp_path / "queries").mkdir()
+        (tmp_path / "queries" / "my_ds.sql").write_text("SELECT 1")
+
+        r = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            table="users",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query is None  # type: ignore[union-attr]
