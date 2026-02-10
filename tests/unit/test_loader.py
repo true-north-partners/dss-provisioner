@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
-from dss_provisioner.resources.dataset import SnowflakeDatasetResource
+from dss_provisioner.resources.dataset import OracleDatasetResource, SnowflakeDatasetResource
 from dss_provisioner.resources.loader import (
     _find_entry_function,
     _wrap_python_code,
@@ -326,3 +326,16 @@ class TestResolveQueryFiles:
         )
         resolved = resolve_code_files([r], tmp_path)
         assert resolved[0].query is None  # type: ignore[union-attr]
+
+    def test_oracle_convention_path(self, tmp_path: Path) -> None:
+        (tmp_path / "queries").mkdir()
+        (tmp_path / "queries" / "my_ds.sql").write_text("SELECT * FROM employees")
+
+        r = OracleDatasetResource(
+            name="my_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            mode="query",
+        )
+        resolved = resolve_code_files([r], tmp_path)
+        assert resolved[0].query == "SELECT * FROM employees"  # type: ignore[union-attr]

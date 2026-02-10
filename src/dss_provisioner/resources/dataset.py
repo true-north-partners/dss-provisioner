@@ -63,7 +63,7 @@ class SnowflakeDatasetResource(DatasetResource):
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str | None, DSSParam("params.table")] = None
-    query: Annotated[str | None, DSSParam("params.queryString")] = None
+    query: Annotated[str | None, DSSParam("params.queryString")] = Field(default=None, min_length=1)
     query_file: str | None = Field(default=None, exclude=True)
     catalog: Annotated[str | None, DSSParam("params.catalog")] = None
     write_mode: Annotated[
@@ -80,7 +80,7 @@ class SnowflakeDatasetResource(DatasetResource):
         elif self.mode == "query":
             if self.table is not None:
                 raise ValueError("'table' cannot be used when mode is 'query'")
-            if self.query and self.query_file:
+            if self.query is not None and self.query_file is not None:
                 raise ValueError("Cannot set both 'query' and 'query_file'")
         return self
 
@@ -96,7 +96,7 @@ class OracleDatasetResource(DatasetResource):
     mode: Annotated[Literal["table", "query"], DSSParam("params.mode")] = "table"
     schema_name: Annotated[str, DSSParam("params.schema")] = Field(min_length=1)
     table: Annotated[str | None, DSSParam("params.table")] = None
-    query: Annotated[str | None, DSSParam("params.queryString")] = None
+    query: Annotated[str | None, DSSParam("params.queryString")] = Field(default=None, min_length=1)
     query_file: str | None = Field(default=None, exclude=True)
 
     @model_validator(mode="after")
@@ -109,7 +109,7 @@ class OracleDatasetResource(DatasetResource):
         elif self.mode == "query":
             if self.table is not None:
                 raise ValueError("'table' cannot be used when mode is 'query'")
-            if self.query and self.query_file:
+            if self.query is not None and self.query_file is not None:
                 raise ValueError("Cannot set both 'query' and 'query_file'")
         return self
 
