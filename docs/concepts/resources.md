@@ -225,12 +225,16 @@ All datasets share common fields from `DatasetResource`:
 
 | Type | YAML `type` | Extra required fields |
 |---|---|---|
-| Snowflake | `snowflake` | `connection`, `schema_name`, `table` |
-| Oracle | `oracle` | `connection`, `schema_name`, `table` |
+| Snowflake | `snowflake` | `connection`, `schema_name`, `table` (table mode) or `query`/`query_file` (query mode) |
+| Oracle | `oracle` | `connection`, `schema_name`, `table` (table mode) or `query`/`query_file` (query mode) |
 | Filesystem | `filesystem` | `connection`, `path` |
 | Upload | `upload` | — |
 
 #### Snowflake datasets
+
+Snowflake datasets support two modes: `table` (default) and `query`.
+
+**Table mode** — reads from or writes to a specific table:
 
 ```yaml
 datasets:
@@ -242,6 +246,42 @@ datasets:
     table: CUSTOMERS
     catalog: MY_DB          # optional
     write_mode: OVERWRITE   # OVERWRITE (default), APPEND, or TRUNCATE
+```
+
+**Query mode** — defines the dataset via a SQL query. Provide the SQL inline with `query` or load it from a file with `query_file`:
+
+```yaml
+datasets:
+  - name: active_customers
+    type: snowflake
+    connection: snowflake_prod
+    mode: query
+    schema_name: RAW
+    query_file: queries/active_customers.sql
+```
+
+If neither `query` nor `query_file` is set, the provisioner looks for `queries/{name}.sql` by convention.
+
+| Field | Type | Modes | Description |
+|---|---|---|---|
+| `table` | `str` | table | Required in table mode. Target table name |
+| `query` | `str` | query | Inline SQL query text |
+| `query_file` | `str` | query | Path to SQL file (relative to config). Mutually exclusive with `query` |
+| `catalog` | `str` | both | Snowflake database/catalog |
+| `write_mode` | `str` | both | `OVERWRITE` (default), `APPEND`, or `TRUNCATE` |
+
+#### Oracle datasets
+
+Oracle datasets also support `table` and `query` modes, with the same `query`/`query_file` fields as Snowflake.
+
+```yaml
+datasets:
+  - name: hr_query
+    type: oracle
+    connection: oracle_prod
+    mode: query
+    schema_name: HR
+    query: "SELECT * FROM employees WHERE active = 1"
 ```
 
 #### Filesystem datasets

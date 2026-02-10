@@ -297,9 +297,13 @@ Upload managed folders have no additional required fields.
 | `connection` | string | — | **Required.** Snowflake connection name |
 | `mode` | string | `table` | `table` or `query` |
 | `schema_name` | string | — | **Required.** Snowflake schema (non-empty) |
-| `table` | string | — | **Required.** Table name (non-empty) |
+| `table` | string | — | Required when `mode: table`. Table name (non-empty) |
+| `query` | string | — | Inline SQL query (query mode only). Mutually exclusive with `query_file` |
+| `query_file` | string | — | Path to SQL file, relative to config (query mode only). Mutually exclusive with `query` |
 | `catalog` | string | — | Snowflake database/catalog |
 | `write_mode` | string | `OVERWRITE` | `OVERWRITE`, `APPEND`, or `TRUNCATE` |
+
+If `mode: query` and neither `query` nor `query_file` is set, the provisioner looks for `queries/{name}.sql` by convention.
 
 ### Oracle-specific fields
 
@@ -308,7 +312,11 @@ Upload managed folders have no additional required fields.
 | `connection` | string | — | **Required.** Oracle connection name |
 | `mode` | string | `table` | `table` or `query` |
 | `schema_name` | string | — | **Required.** Oracle schema (non-empty) |
-| `table` | string | — | **Required.** Table name (non-empty) |
+| `table` | string | — | Required when `mode: table`. Table name (non-empty) |
+| `query` | string | — | Inline SQL query (query mode only). Mutually exclusive with `query_file` |
+| `query_file` | string | — | Path to SQL file, relative to config (query mode only). Mutually exclusive with `query` |
+
+If `mode: query` and neither `query` nor `query_file` is set, the provisioner looks for `queries/{name}.sql` by convention.
 
 ### Filesystem-specific fields
 
@@ -503,7 +511,9 @@ Additional parse-time constraints:
 - **Recipe outputs**: at least one output is required
 - **SQL recipe inputs**: at least one input is required
 - **Zone color**: must be a valid hex color in `#RRGGBB` format
-- **Snowflake/Oracle `schema_name` and `table`**: must be non-empty
+- **Snowflake/Oracle `schema_name`**: must be non-empty
+- **Snowflake/Oracle `table`**: required when `mode: table`; forbidden when `mode: query`
+- **Snowflake/Oracle `query`/`query_file`**: mutually exclusive; forbidden when `mode: table`
 - **Filesystem `path`**: must be non-empty
 - **Git library `repository`**: must be non-empty
 

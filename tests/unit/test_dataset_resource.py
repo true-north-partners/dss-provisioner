@@ -207,6 +207,99 @@ class TestSnowflakeDatasetResource:
         params = ds.to_dss_params()
         assert "catalog" not in params
 
+    def test_query_mode_with_inline_query(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query="SELECT * FROM users",
+        )
+        params = ds.to_dss_params()
+        assert params["queryString"] == "SELECT * FROM users"
+        assert "table" not in params
+
+    def test_query_mode_with_query_file(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query_file="queries/my_ds.sql",
+        )
+        dump = ds.model_dump(exclude_none=True)
+        assert "query_file" not in dump
+
+    def test_table_mode_requires_table(self) -> None:
+        with pytest.raises(ValidationError, match="table"):
+            SnowflakeDatasetResource(
+                name="my_ds", connection="sf_conn", schema_name="PUBLIC", mode="table"
+            )
+
+    def test_table_mode_forbids_query(self) -> None:
+        with pytest.raises(ValidationError, match="query"):
+            SnowflakeDatasetResource(
+                name="my_ds",
+                connection="sf_conn",
+                schema_name="PUBLIC",
+                table="users",
+                mode="table",
+                query="SELECT 1",
+            )
+
+    def test_query_mode_forbids_table(self) -> None:
+        with pytest.raises(ValidationError, match="table"):
+            SnowflakeDatasetResource(
+                name="my_ds",
+                connection="sf_conn",
+                schema_name="PUBLIC",
+                table="users",
+                mode="query",
+            )
+
+    def test_query_and_query_file_mutual_exclusion(self) -> None:
+        with pytest.raises(ValidationError, match="both"):
+            SnowflakeDatasetResource(
+                name="my_ds",
+                connection="sf_conn",
+                schema_name="PUBLIC",
+                mode="query",
+                query="SELECT 1",
+                query_file="queries/my_ds.sql",
+            )
+
+    def test_query_mode_no_query_accepted(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds", connection="sf_conn", schema_name="PUBLIC", mode="query"
+        )
+        assert ds.query is None
+        assert ds.query_file is None
+
+    def test_to_dss_params_query_mode(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            mode="query",
+            query="SELECT * FROM t",
+        )
+        params = ds.to_dss_params()
+        assert params["queryString"] == "SELECT * FROM t"
+        assert params["mode"] == "query"
+        assert "table" not in params
+
+    def test_to_dss_params_table_mode(self) -> None:
+        ds = SnowflakeDatasetResource(
+            name="my_ds",
+            connection="sf_conn",
+            schema_name="PUBLIC",
+            table="users",
+        )
+        params = ds.to_dss_params()
+        assert params["table"] == "users"
+        assert params["mode"] == "table"
+        assert "queryString" not in params
+
 
 class TestOracleDatasetResource:
     def test_address(self) -> None:
@@ -270,6 +363,99 @@ class TestOracleDatasetResource:
             "schema": "HR",
             "table": "employees",
         }
+
+    def test_query_mode_with_inline_query(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            mode="query",
+            query="SELECT * FROM employees",
+        )
+        params = ds.to_dss_params()
+        assert params["queryString"] == "SELECT * FROM employees"
+        assert "table" not in params
+
+    def test_query_mode_with_query_file(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            mode="query",
+            query_file="queries/my_ds.sql",
+        )
+        dump = ds.model_dump(exclude_none=True)
+        assert "query_file" not in dump
+
+    def test_table_mode_requires_table(self) -> None:
+        with pytest.raises(ValidationError, match="table"):
+            OracleDatasetResource(
+                name="my_ds", connection="ora_conn", schema_name="HR", mode="table"
+            )
+
+    def test_table_mode_forbids_query(self) -> None:
+        with pytest.raises(ValidationError, match="query"):
+            OracleDatasetResource(
+                name="my_ds",
+                connection="ora_conn",
+                schema_name="HR",
+                table="employees",
+                mode="table",
+                query="SELECT 1",
+            )
+
+    def test_query_mode_forbids_table(self) -> None:
+        with pytest.raises(ValidationError, match="table"):
+            OracleDatasetResource(
+                name="my_ds",
+                connection="ora_conn",
+                schema_name="HR",
+                table="employees",
+                mode="query",
+            )
+
+    def test_query_and_query_file_mutual_exclusion(self) -> None:
+        with pytest.raises(ValidationError, match="both"):
+            OracleDatasetResource(
+                name="my_ds",
+                connection="ora_conn",
+                schema_name="HR",
+                mode="query",
+                query="SELECT 1",
+                query_file="queries/my_ds.sql",
+            )
+
+    def test_query_mode_no_query_accepted(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds", connection="ora_conn", schema_name="HR", mode="query"
+        )
+        assert ds.query is None
+        assert ds.query_file is None
+
+    def test_to_dss_params_query_mode(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            mode="query",
+            query="SELECT * FROM t",
+        )
+        params = ds.to_dss_params()
+        assert params["queryString"] == "SELECT * FROM t"
+        assert params["mode"] == "query"
+        assert "table" not in params
+
+    def test_to_dss_params_table_mode(self) -> None:
+        ds = OracleDatasetResource(
+            name="my_ds",
+            connection="ora_conn",
+            schema_name="HR",
+            table="employees",
+        )
+        params = ds.to_dss_params()
+        assert params["table"] == "employees"
+        assert params["mode"] == "table"
+        assert "queryString" not in params
 
 
 class TestFilesystemDatasetResource:
