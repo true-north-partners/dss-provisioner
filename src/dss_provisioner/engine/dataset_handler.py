@@ -176,6 +176,8 @@ class DatasetHandler(ResourceHandler["DatasetResource"]):
             dataset = project.create_dataset(desired.name, desired.type, params=params)
 
         settings = dataset.get_settings()
+        raw = settings.get_raw()
+        raw.setdefault("params", {}).update(desired.to_dss_params())
         self._apply_format(settings, desired)
         settings.save()
 
