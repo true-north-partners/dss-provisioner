@@ -41,6 +41,18 @@ def _use_color(no_color: bool) -> bool:
     return not (no_color or os.environ.get("NO_COLOR"))
 
 
+def _load_config(path: Path) -> Config:
+    """Load config and apply CLI-level side effects."""
+    from dss_provisioner.config import load
+
+    cfg = load(path)
+    if not cfg.provider.verify_ssl:
+        import urllib3
+
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    return cfg
+
+
 def _apply_with_progress(plan_obj: Plan, cfg: Config, *, color: bool) -> ApplyResult:
     """Apply a plan with a Rich progress bar and per-resource status lines."""
     from rich.console import Console
@@ -134,12 +146,11 @@ def plan(
         format_plan_summary,
         has_actionable_changes,
     )
-    from dss_provisioner.config import load
     from dss_provisioner.config import plan as plan_fn
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         plan_obj = plan_fn(cfg, refresh=not no_refresh)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
@@ -168,13 +179,12 @@ def apply_cmd(
     no_refresh: NoRefresh = False,
 ) -> None:
     """Apply the changes required by the current configuration."""
-    from dss_provisioner.config import load
     from dss_provisioner.config import plan as plan_fn
     from dss_provisioner.engine.types import Plan
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         plan_obj = (
             Plan.load(plan_file) if plan_file is not None else plan_fn(cfg, refresh=not no_refresh)
         )
@@ -198,12 +208,11 @@ def destroy(
     no_color: NoColor = False,
 ) -> None:
     """Destroy all managed resources."""
-    from dss_provisioner.config import load
     from dss_provisioner.config import plan as plan_fn
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         plan_obj = plan_fn(cfg, destroy=True)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
@@ -226,12 +235,12 @@ def refresh_cmd(
 ) -> None:
     """Refresh state from the live DSS instance."""
     from dss_provisioner.cli.formatting import changes_summary, format_changes, format_plan_summary
-    from dss_provisioner.config import load, save_state
     from dss_provisioner.config import refresh as refresh_fn
+    from dss_provisioner.config import save_state
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         changes, state = refresh_fn(cfg)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
@@ -265,11 +274,10 @@ def drift(
     """Show drift between state and the live DSS instance."""
     from dss_provisioner.cli.formatting import format_changes
     from dss_provisioner.config import drift as drift_fn
-    from dss_provisioner.config import load
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         changes = drift_fn(cfg)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
@@ -319,7 +327,6 @@ def preview(
         format_plan,
         format_plan_summary,
     )
-    from dss_provisioner.config import load
     from dss_provisioner.config.loader import ConfigError
     from dss_provisioner.preview import destroy_preview, list_previews, run_preview
 
@@ -330,7 +337,7 @@ def preview(
         raise typer.Exit(handle_error(exc, color=color))
 
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         if list_:
             previews = list_previews(cfg)
             if not previews:
@@ -384,12 +391,11 @@ def validate(
 ) -> None:
     """Validate the configuration file."""
     from dss_provisioner.cli.formatting import styler
-    from dss_provisioner.config import load
     from dss_provisioner.config import plan as plan_fn
 
     color = _use_color(no_color)
     try:
-        cfg = load(config)
+        cfg = _load_config(config)
         plan_fn(cfg, refresh=False)
     except Exception as exc:
         raise typer.Exit(handle_error(exc, color=color)) from exc
