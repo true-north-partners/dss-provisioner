@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from pydantic import Field, computed_field
+from pydantic import Field
 
 from dss_provisioner.resources.base import Resource
 
@@ -19,7 +19,6 @@ class ForeignDatasetResource(Resource):
     source_project: str = Field(min_length=1)
     source_name: str = Field(min_length=1)
 
-    @computed_field
     @property
     def full_ref(self) -> str:
         return f"{self.source_project}.{self.source_name}"
@@ -35,7 +34,6 @@ class ForeignManagedFolderResource(Resource):
     source_project: str = Field(min_length=1)
     source_name: str = Field(min_length=1)
 
-    @computed_field
     @property
     def full_ref(self) -> str:
         return f"{self.source_project}.{self.source_name}"
