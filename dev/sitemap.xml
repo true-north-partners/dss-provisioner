@@ -2,66 +2,66 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/quickstart/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/concepts/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/concepts/architecture/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/concepts/configuration/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/concepts/resources/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/examples/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/installation/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/modules/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/python-api/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/guides/yaml-config/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/reference/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/reference/api/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/reference/cli/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
     <url>
          <loc>https://dss-provisioner.pages.dev/dev/reference/resources/</loc>
-         <lastmod>2026-02-10</lastmod>
+         <lastmod>2026-02-11</lastmod>
     </url>
 </urlset>
